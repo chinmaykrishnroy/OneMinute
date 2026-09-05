@@ -51,7 +51,10 @@ func TestPionEndToEnd(t *testing.T) {
 	if api == "" {
 		t.Fatal("TEST_API_URL required")
 	}
-	const origin = "http://localhost:3000"
+	origin := os.Getenv("TEST_WEB_ORIGIN")
+	if origin == "" {
+		origin = "http://localhost:3000"
+	}
 	for _, relay := range []bool{false, true} {
 		t.Run(fmt.Sprintf("relay_%t", relay), func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

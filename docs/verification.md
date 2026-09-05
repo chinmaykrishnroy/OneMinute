@@ -57,3 +57,27 @@ Browser relay testing is still pending: the remote configuration advertises priv
 Cloudflare dashboard routes have been documented, not created. The existing connector was found active. See cloudflare-testing.md for Access protection, same-origin web/API routing and separate TURN requirements. The approved UI direction is saved in AGENTS.md and docs/design/ui-direction.md.
 
 The shared UI stylesheet was updated to the approved visual direction. A clean frontend install, TypeScript check, lint and production build passed on llm-04. The rebuilt remote web service passed health checks, and the refreshed lab was visually inspected in the desktop browser.
+
+## Milestone 1 acceptance on the dedicated host (2026-09-05)
+
+Deployment moved to `ssh oneminute`, `/home/roy/OneMinute`. GitHub fetch works directly after the repository was made public. Fresh remote-only secrets were generated. The public endpoint is https://oneminute.prefect-sys.online/lab and TURN advertises 35.234.222.18.
+
+Verified on the new machine:
+
+- Full Docker deployment: PostgreSQL/pgvector, Redis, migration job, Go signaling, Next.js, Pion TURN and Caddy gateway. All six long-running services healthy; migration completed successfully.
+- Caddy configuration validation and public HTTPS health passed. One Cloudflare route to HTTP 127.0.0.1:3000 serves both web and `/v1/*`, including public WebSocket signaling.
+- Full Go race detector and vet passed. Real database/Redis integration, atomic two-slot room claims, cross-instance signaling and protocol rejection checks passed.
+- STUN binding and authenticated TURN allocations passed over UDP and TCP, returning relay addresses within 49160–49180.
+- Pion end-to-end tests passed in normal and forced-relay modes, with bidirectional synthetic Opus RTP, DataChannels and clean peer termination.
+- Frontend clean install, TypeScript, lint and production build passed.
+
+Verified from browsers using the public HTTPS hostname:
+
+- Two generated-media browser peers connected with Force TURN relay enabled on both. Both selected `relay ↔ relay (udp)`, received increasing media bytes, and played 640x360 remote video with readyState 4 and paused false.
+- Messages arrived in both directions. Mute/unmute and camera off/on controls toggled; Leave ended both peers, cleared chat/counters and returned video elements to readyState 0 and zero dimensions.
+- A Pion peer running on the dedicated VM joined through the public HTTPS/WebSocket endpoint with relay required. Pion received browser VP8 video and Opus audio; the browser received synthetic Pion audio RTP and a greeting, sent a message, and received an acknowledgment. Pion reported relay-to-relay and exited successfully after browser Leave.
+- A fresh normal-ICE browser call then connected host-to-host over UDP with increasing media counters and an open DataChannel. Both browser tabs reported no console errors.
+
+Milestone 1 implementation and networking acceptance are complete. Device-specific camera/microphone permissions and audible physical microphone playback remain manual acceptance checks. Generated media exercises real RTP but does not verify physical hardware. The browser pair used one workstation; a Wi-Fi/cellular two-device matrix and restrictive-network TURN/TLS fallback are not claimed. The current fallback supports TURN/TCP 3478, not TURN/TLS 443.
+
+After these checks, the old llm-04 database was confirmed to contain zero users. Its OneMinute containers, network, database volume, two Go test cache volumes, application images, test toolchain images, `/home/roy/OneMinute`, and the two known repository transfer archives were removed. No Docker containers or volumes remained. The unrelated llama.cpp image was preserved, and cloudflared and Tailscale remained active. Shared Docker build cache was not globally pruned because llm-04 also hosts unrelated LLM work.

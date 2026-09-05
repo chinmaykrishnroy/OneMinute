@@ -2,11 +2,11 @@
 
 A real-time conversation application being built in vertical milestones. Branding is temporary; internal names use **encounter**.
 
-**Current slice: Milestones 0–1.** Next.js, Go API, PostgreSQL/pgvector, Redis, independent Pion TURN, migrations, and a development networking lab. Public authentication and matchmaking come next.
+**Current slice: Milestones 0–1 implemented.** Next.js, Go API, PostgreSQL/pgvector, Redis, independent Pion TURN, migrations, and a development networking lab. Public authentication and matchmaking come next.
 
 ## Development instance
 
-Build and test on **llm-04** in **/home/roy/OneMinute**, per the project workflow. Use `ssh llm-04` and the commands in [remote development](docs/remote-development.md). The local application stack is stopped.
+Build and test on **oneminute** in **/home/roy/OneMinute**, per the project workflow. Use `ssh oneminute` and the commands in [remote development](docs/remote-development.md). The public development lab is [oneminute.prefect-sys.online/lab](https://oneminute.prefect-sys.online/lab). The local application stack is stopped.
 
 For browser testing and the exact Cloudflare dashboard routes, see [Cloudflare testing](docs/cloudflare-testing.md). The approved visual direction is **soft neobrutalist + modern minimal social UI hybrid**, recorded in [UI direction](docs/design/ui-direction.md).
 

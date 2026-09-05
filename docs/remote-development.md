@@ -1,27 +1,38 @@
-# Remote development: llm-04
+# Dedicated development and deployment host
 
-Per the project owner's instruction, run application builds and tests on `ssh llm-04`, not on the local workstation. The workspace is `/home/roy/OneMinute`. Docker requires `sudo -n` for the roy account. No global Go or Node install is required.
+Run application builds, containers and tests on **ssh oneminute**, in `/home/roy/OneMinute`. The public networking lab is https://oneminute.prefect-sys.online/lab. Local source editing, Git and browser use are allowed; application compute stays on the dedicated host.
 
-The previous local Compose stack has been stopped and removed; its durable development volume is preserved. No previous OneMinute deployment was found on llm-04 in /home, /root, /opt, /srv or /ephemeral, and Docker had no application containers or volumes to clean. Do not remove unrelated services or model files.
+Docker requires `sudo -n` for roy. The repository remote is https://github.com/chinmaykrishnroy/OneMinute.git, branch main. Fresh deployment secrets live only in the remote `.env` (mode 0600).
 
-On the remote host:
+## Update and start
 
 ```sh
+ssh oneminute
 cd /home/roy/OneMinute
-sh scripts/remote-init.sh
-sudo -n docker compose -f compose.yaml -f compose.remote.yaml up --build --detach --wait --wait-timeout 180
-sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.test.yaml --profile test run --rm verify-go
-sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.test.yaml --profile test run --rm verify-web
+git pull --ff-only origin main
+sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.public.yaml up --build -d --wait --wait-timeout 240
 ```
 
-The remote .env uses fresh secrets and a reachable host interface address for TURN. It is not copied from the workstation or committed. The API/web remain loopback-bound. HTTP health checks can run over SSH using curl; browsers need an SSH forward or an intentionally configured HTTPS endpoint. Google login and public deployment are later work.
+The three Compose files are cumulative: base dependencies and services, Linux host-network TURN, then the single-port HTTP gateway. Preserve `.env` and database volumes on updates. Do not run initialization over an existing environment or copy secrets into Git.
 
-To test in a browser, forward web/API ports from the remote host:
+## Verify
+
 ```sh
-ssh -L 3000:127.0.0.1:3000 -L 8080:127.0.0.1:8080 llm-04
+sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.public.yaml -f compose.test.yaml --profile test run --rm verify-go
+sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.public.yaml -f compose.test.yaml --profile test run --rm verify-web
+curl -f https://oneminute.prefect-sys.online/healthz
 ```
-The browser UI then uses localhost while application compute runs on llm-04. TURN still needs a directly reachable host/public address; a TCP SSH forward does not forward TURN UDP. For public NAT tests use the VM public IPv4 and explicit firewall rules. Do not expose the unauthenticated development lab publicly.
 
-See [Cloudflare testing](cloudflare-testing.md) for the two-peer test procedure, exact dashboard routes, origin configuration and separate TURN firewall requirements.
+The Go service runs race detection, vet, real PostgreSQL/Redis integration, distributed signaling checks, STUN/TURN allocation and Pion media/DataChannel tests. TEST_WEB_ORIGIN follows WEB_ORIGIN so the same checks work with the public deployment's exact origin. Test toolchains live in containers.
 
-Use a source archive excluding .env, .git, node_modules, .next and artifacts when copying an uncommitted test slice. After verification, commit and push a coherent checkpoint to origin/main without attribution trailers.
+## Network topology
+
+The existing cloudflared host service sends `oneminute.prefect-sys.online` to `http://127.0.0.1:3000`. Caddy receives that one port and forwards `/v1/*` unchanged to Go at `server:8080`, including WebSocket upgrades. Other paths go to `web:3000`. Next.js has no directly published host port in this deployment.
+
+TURN advertises **35.234.222.18**, the new VM's public IPv4 observed on 2026-09-05. Reserve or recheck that address if the VM is stopped or recreated. TURN uses direct UDP/TCP 3478 and UDP relay ports 49160–49180. Cloudflare carries web/signaling, not TURN media. The TURN health listener, API, PostgreSQL and Redis bind only to host loopback where published.
+
+See [Cloudflare testing](cloudflare-testing.md) for the current settings and manual call checks. Google login and application sessions start in Milestone 2; the current lab uses temporary room capabilities.
+
+## Previous host
+
+llm-04 is retired from the OneMinute workflow after verification on the dedicated host. Its application resources are removed only after confirming the new deployment works. Cleanup is scoped to the OneMinute workspace, transfer artifacts and Docker resources; unrelated cloudflared/Tailscale/LLM services and files must remain intact. See [verification](verification.md) for the actual cleanup outcome.

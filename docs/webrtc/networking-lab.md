@@ -1,6 +1,6 @@
 # Networking lab (Milestone 1)
 
-Enable `RTC_LAB_ENABLED=true` in the local .env, run `docker compose up --build --detach --wait`, and open http://localhost:3000/lab in two tabs.
+The dedicated deployment is https://oneminute.prefect-sys.online/lab. Open it in two tabs or devices. Build and test on `ssh oneminute` with the commands in [remote development](../remote-development.md); the remote .env already enables the lab.
 
 1. Create a room in tab A.
 2. Choose Camera and microphone (requires permission), or Test pattern (synthetic video and a silent audio track).
