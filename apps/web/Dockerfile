@@ -5,6 +5,8 @@ RUN npm ci
 
 FROM dependencies AS build
 COPY . .
+ARG API_PUBLIC_URL=http://localhost:8080
+ENV API_PUBLIC_URL=$API_PUBLIC_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

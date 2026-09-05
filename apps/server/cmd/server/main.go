@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"example.com/encounter/apps/server/internal/auth"
 	"example.com/encounter/apps/server/internal/config"
 	"example.com/encounter/apps/server/internal/signaling"
 	"example.com/encounter/apps/server/internal/transport"
@@ -50,7 +52,11 @@ func run(ctx context.Context, log *slog.Logger) error {
 	redisCfg.PoolSize = 10
 	cache := redis.NewClient(redisCfg)
 	defer cache.Close()
-	var register []func(*http.ServeMux)
+	authHandler := &auth.Handler{Repo: auth.Repository{DB: pool}, Origin: cfg.WebOrigin, ClientID: cfg.GoogleClientID, Secure: strings.HasPrefix(cfg.WebOrigin, "https://")}
+	if cfg.GoogleClientID != "" {
+		authHandler.Verifier = auth.GoogleVerifier{Audience: cfg.GoogleClientID}
+	}
+	var register = []func(*http.ServeMux){authHandler.Register}
 	if cfg.LabEnabled {
 		if len(os.Getenv("TURN_SECRET")) < 32 || os.Getenv("TURN_HOST") == "" {
 			return errors.New("lab requires TURN_SECRET and TURN_HOST")

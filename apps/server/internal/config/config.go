@@ -8,16 +8,17 @@ import (
 )
 
 type Config struct {
-	LabEnabled  bool
-	Environment string
-	HTTPAddr    string
-	DatabaseURL string
-	RedisURL    string
-	WebOrigin   string
+	LabEnabled     bool
+	Environment    string
+	HTTPAddr       string
+	DatabaseURL    string
+	RedisURL       string
+	WebOrigin      string
+	GoogleClientID string
 }
 
 func Load() (Config, error) {
-	c := Config{Environment: value("APP_ENV", "development"), HTTPAddr: value("HTTP_ADDR", ":8080"), DatabaseURL: os.Getenv("DATABASE_URL"), RedisURL: os.Getenv("REDIS_URL"), WebOrigin: value("WEB_ORIGIN", "http://localhost:3000")}
+	c := Config{Environment: value("APP_ENV", "development"), HTTPAddr: value("HTTP_ADDR", ":8080"), DatabaseURL: os.Getenv("DATABASE_URL"), RedisURL: os.Getenv("REDIS_URL"), WebOrigin: value("WEB_ORIGIN", "http://localhost:3000"), GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID")}
 	if c.Environment != "development" && c.Environment != "test" && c.Environment != "production" {
 		return c, errors.New("APP_ENV must be development, test, or production")
 	}

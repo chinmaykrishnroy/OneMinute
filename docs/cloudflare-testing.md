@@ -26,7 +26,7 @@ cd /home/roy/OneMinute
 sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.public.yaml up --build -d --wait
 ```
 
-Cloudflare Tunnel provides HTTPS for the browser. The current milestone is a development lab with temporary random room codes, before application login. Anyone holding a room code can occupy an available slot; rooms expire after ten minutes. Cloudflare Access can restrict the entire hostname to tester identities while application identity is being built. Keep caching disabled for `/v1/*` and leave WebSockets enabled for the domain.
+Cloudflare Tunnel provides HTTPS for the browser. The `/lab` route remains a development-only transport harness with temporary random room codes and is intentionally separate from application login. Anyone holding a room code can occupy an available lab slot; rooms expire after ten minutes. The main application now uses Google-backed application sessions. Cloudflare Access may still restrict the hostname during private testing. Keep caching disabled for `/v1/*` and leave WebSockets enabled for the domain.
 
 ## Test a call
 

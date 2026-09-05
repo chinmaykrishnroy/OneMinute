@@ -81,3 +81,19 @@ Verified from browsers using the public HTTPS hostname:
 Milestone 1 implementation and networking acceptance are complete. Device-specific camera/microphone permissions and audible physical microphone playback remain manual acceptance checks. Generated media exercises real RTP but does not verify physical hardware. The browser pair used one workstation; a Wi-Fi/cellular two-device matrix and restrictive-network TURN/TLS fallback are not claimed. The current fallback supports TURN/TCP 3478, not TURN/TLS 443.
 
 After these checks, the old llm-04 database was confirmed to contain zero users. Its OneMinute containers, network, database volume, two Go test cache volumes, application images, test toolchain images, `/home/roy/OneMinute`, and the two known repository transfer archives were removed. No Docker containers or volumes remained. The unrelated llama.cpp image was preserved, and cloudflared and Tailscale remained active. Shared Docker build cache was not globally pruned because llm-04 also hosts unrelated LLM work.
+
+## Milestone 2 identity and architecture checkpoint (2026-09-06)
+
+Implemented and deployed on `oneminute`:
+
+- Google Identity Services client UI with a server-issued nonce and backend ID-token validation for signature, issuer, audience, expiry and nonce.
+- Stable Google subject mapping to application users, basic name/avatar identity, and an email-verification signal without storing or keying identity by email.
+- Opaque 30-day application sessions in Secure, HttpOnly, SameSite=Lax host cookies. PostgreSQL stores only SHA-256 session-secret hashes with expiry, last-seen and revocation.
+- Exact Origin checks on login and logout, bounded strict JSON, returning-session lookup, logout/revocation, and no browser-local token storage.
+- Public same-origin routing for identity endpoints. The frontend build now receives `API_PUBLIC_URL`; this fixed a discovered mixed-content failure where the static page had compiled the localhost fallback.
+
+Remote verification passed: full Go race suite and vet; authentication lifecycle integration with new user, hardened cookie, hash-only storage, returning identity and revoked-session rejection; existing PostgreSQL/Redis, signaling, TURN UDP/TCP and Pion normal/forced-relay integration; clean frontend install, typecheck, lint and production build. All deployed services were healthy. The public HTTPS page rendered the Google button with no page errors, and `/v1/auth/config` returned enabled configuration with a hardened nonce cookie.
+
+Not yet claimed: completing the real Google account selector, confirming the resulting production Google ID token against the live backend, and visually confirming the signed-in avatar/returning session/logout in a user account. That action requires an account holder to choose an account in Google’s UI. The automated verifier-boundary integration covers the same application session lifecycle with a controlled signed-credential verifier.
+
+The product architecture was updated before Milestone 3 to record the conversation-first product loop, optional intent model, separate Extend and Connect state machines, reconnect grace, durable connections and messaging, S3-compatible private media storage, schema sequencing and revised milestones. No Milestone 3 runtime feature was implemented in this checkpoint.

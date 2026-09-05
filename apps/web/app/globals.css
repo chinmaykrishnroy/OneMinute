@@ -42,6 +42,20 @@ form { display: flex; gap: 16px; align-items: end; }
 form label { flex: 1; min-width: 0; }
 li { padding: 8px 0; overflow-wrap: anywhere; line-height: 1.5; }
 output { font-variant-numeric: tabular-nums; }
+.hero { min-height: 68vh; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: clamp(36px, 8vw, 96px); align-items: center; }
+.hero h1 { margin: 10px 0 20px; font-size: clamp(4rem, 12vw, 8.5rem); }
+.hero-copy { max-width: 620px; font-size: clamp(1.2rem, 2.5vw, 1.7rem); color: var(--ink); }
+.eyebrow { margin: 0; color: var(--ink); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.signin-card, .identity-card { margin: 0; background: #e8def8; box-shadow: 5px 5px 0 var(--ink); }
+.signin-card h2, .identity-card h2 { margin: 10px 0; }
+.google-button { min-height: 44px; margin-top: 22px; }
+.auth-status { margin-bottom: 0; font-size: 14px; }
+.identity-card { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.identity-card img, .avatar-fallback { width: 52px; height: 52px; border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); }
+.avatar-fallback { display: grid; place-items: center; font-size: 22px; font-weight: 700; }
+.identity-card p { margin: 4px 0 0; }
+.identity-card .quiet-button { grid-column: 1 / -1; background: var(--paper); justify-self: start; }
+.development-note { padding-top: 24px; border-top: 1px solid #d4d4c9; }
 @media(max-width: 650px) {
   main { padding: 28px 16px; }
   .setup, section { padding: 18px; }
@@ -49,5 +63,7 @@ output { font-variant-numeric: tabular-nums; }
   .videos figure:last-child { width: 45%; }
   .setup label:not(.check), .setup input:not([type=checkbox]) { width: 100%; }
   form { gap: 10px; }
+  .hero { min-height: auto; grid-template-columns: 1fr; gap: 32px; }
+  .hero h1 { font-size: clamp(3.8rem, 20vw, 6rem); }
 }
 @media(prefers-reduced-motion: reduce) { button { transition: none; } }
