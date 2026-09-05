@@ -1,10 +1,14 @@
-# 60 Second Internet
+# OneMinute
 
 A real-time conversation application being built in vertical milestones. Branding is temporary; internal names use **encounter**.
 
-**Current slice: Milestone 0.** Next.js shell, Go API, PostgreSQL/pgvector, Redis, independent Pion TURN, migrations and development tooling. Authentication, matchmaking and calls are not part of this foundation yet.
+**Current slice: Milestones 0–1.** Next.js, Go API, PostgreSQL/pgvector, Redis, independent Pion TURN, migrations, and a development networking lab. Public authentication and matchmaking come next.
 
-## Run locally
+## Development instance
+
+Build and test on **llm-04** in **/home/roy/OneMinute**, per the project workflow. Use `ssh llm-04` and the commands in [remote development](docs/remote-development.md). The local application stack is stopped.
+
+## Portable Compose setup
 
 Requires Docker Engine/Desktop with Linux containers and Compose. Node 24 and Go 1.26.5 are used for host checks; containers include build tools. No Google credentials are needed for this milestone.
 
@@ -38,6 +42,8 @@ Down preserves database data. Do not add `--volumes` unless intentionally deleti
 
 ## Develop and verify
 
+For this project, use the remote Docker verification services in [remote development](docs/remote-development.md). The host-toolchain equivalents below are reference commands for other development environments.
+
 ```sh
 go mod download
 go test ./...
@@ -70,6 +76,6 @@ Compute remains disposable; PostgreSQL owns durable records and Redis will own d
 
 Application binaries run as non-root containers. Local web/API/database/cache ports bind to loopback. TURN has direct UDP/TCP access and a small bounded relay range; see [ICE/TURN](docs/webrtc/ice-turn.md) before LAN or VM use. The Compose file is for development, not a finished public deployment.
 
-Milestone 1: a development-only two-browser room, typed WebSocket SDP/trickle-ICE signaling, camera/mic lifecycle, direct and forced-TURN tests, and an optional Pion diagnostic peer. Milestone 2 introduces Google verification and durable Go sessions before public access.
+For the networking lab, set RTC_LAB_ENABLED=true in .env and rebuild. Open http://localhost:3000/lab in two tabs. See [networking lab](docs/webrtc/networking-lab.md) for direct/forced-TURN testing and the optional Pion peer. The lab defaults off and is forbidden in production. Milestone 2 introduces Google verification and durable Go sessions before public access.
 
 Read [architecture](docs/architecture/overview.md), [auth](docs/architecture/auth.md), [state](docs/architecture/state.md), [signaling](docs/signaling/protocol.md), and [matchmaking](docs/matchmaking/algorithm.md).

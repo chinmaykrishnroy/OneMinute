@@ -12,7 +12,7 @@ import (
 
 type Check func(context.Context) error
 
-func Handler(log *slog.Logger, checks map[string]Check) http.Handler {
+func Handler(log *slog.Logger, checks map[string]Check, register ...func(*http.ServeMux)) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		respond(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -32,6 +32,9 @@ func Handler(log *slog.Logger, checks map[string]Check) http.Handler {
 		}
 		respond(w, status, result)
 	})
+	for _, add := range register {
+		add(mux)
+	}
 	return Observe(log, mux)
 }
 

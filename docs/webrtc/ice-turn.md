@@ -12,3 +12,5 @@ Temporary credentials use the TURN REST convention: username `expiryUnix:subject
 Private/loopback peer permissions are allowed only by explicit local configuration. Production rejects that option and nonpublic relay addresses. Apply host/network egress ACLs as defense in depth. Per-account allocation/bandwidth quotas, TURN TLS, secret rotation and abuse alerts remain release-hardening work.
 
 Health: :8081/healthz indicates initialized listeners; :8081/metrics exposes auth callback counters (not successfully authenticated packets or bandwidth). Neither endpoint is exposed publicly by Compose.
+
+On llm-04, use compose.remote.yaml: TURN runs with Linux host networking to avoid Docker bridge hairpin failures, with health/metrics on 127.0.0.1. The remote Go verification container also uses host networking. The normal and forced-relay Pion transport tests pass with this topology.

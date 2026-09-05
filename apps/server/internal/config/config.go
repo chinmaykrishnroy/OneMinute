@@ -4,9 +4,11 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strconv"
 )
 
 type Config struct {
+	LabEnabled  bool
 	Environment string
 	HTTPAddr    string
 	DatabaseURL string
@@ -28,6 +30,14 @@ func Load() (Config, error) {
 	}
 	if c.Environment == "production" && u.Scheme != "https" {
 		return c, errors.New("production requires an HTTPS WEB_ORIGIN")
+	}
+	enabled, err := strconv.ParseBool(value("RTC_LAB_ENABLED", "false"))
+	if err != nil {
+		return c, errors.New("invalid RTC_LAB_ENABLED")
+	}
+	c.LabEnabled = enabled
+	if c.LabEnabled && c.Environment == "production" {
+		return c, errors.New("networking lab is forbidden in production")
 	}
 	return c, nil
 }

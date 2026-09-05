@@ -24,3 +24,14 @@ func TestOriginValidation(t *testing.T) {
 		t.Fatal("accepted HTTP in production")
 	}
 }
+
+func TestLabForbiddenInProduction(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/test")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("WEB_ORIGIN", "https://example.com")
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("RTC_LAB_ENABLED", "true")
+	if _, err := Load(); err == nil {
+		t.Fatal("production lab accepted")
+	}
+}

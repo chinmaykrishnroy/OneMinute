@@ -1,1 +1,1 @@
-export const brand = { name: "60 Second Internet" } as const;
+export const brand = { name: "OneMinute" } as const;

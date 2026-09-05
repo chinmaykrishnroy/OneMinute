@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"example.com/encounter/apps/server/internal/config"
+	"example.com/encounter/apps/server/internal/signaling"
 	"example.com/encounter/apps/server/internal/transport"
+	"example.com/encounter/internal/ice"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -48,6 +50,15 @@ func run(ctx context.Context, log *slog.Logger) error {
 	redisCfg.PoolSize = 10
 	cache := redis.NewClient(redisCfg)
 	defer cache.Close()
+	var register []func(*http.ServeMux)
+	if cfg.LabEnabled {
+		if len(os.Getenv("TURN_SECRET")) < 32 || os.Getenv("TURN_HOST") == "" {
+			return errors.New("lab requires TURN_SECRET and TURN_HOST")
+		}
+		host := os.Getenv("TURN_HOST")
+		lab := &signaling.Lab{Root: ctx, Redis: cache, Origin: cfg.WebOrigin, ICE: ice.SharedSecretProvider{Secret: os.Getenv("TURN_SECRET"), URLs: []string{"stun:" + host, "turn:" + host + "?transport=udp", "turn:" + host + "?transport=tcp"}, TTL: 10 * time.Minute}}
+		register = append(register, lab.Register)
+	}
 	handler := transport.Handler(log, map[string]transport.Check{
 		"postgres": pool.Ping,
 		"redis":    func(ctx context.Context) error { return cache.Ping(ctx).Err() },
@@ -62,7 +73,7 @@ func run(ctx context.Context, log *slog.Logger) error {
 			}
 			return nil
 		},
-	})
+	}, register...)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
 	failures := make(chan error, 1)
 	go func() { log.Info("server listening", "address", cfg.HTTPAddr); failures <- server.ListenAndServe() }()

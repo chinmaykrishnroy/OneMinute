@@ -13,5 +13,5 @@ for (const [name,url] of [
 }
 const home = await fetch(`http://localhost:${env.WEB_PORT || 3000}`);
 assert.equal(home.status,200);
-assert.match(await home.text(), /60 Second Internet/);
+assert.match(await home.text(), /OneMinute/);
 console.log("Landing page: OK");

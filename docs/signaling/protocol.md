@@ -1,5 +1,5 @@
 # Signaling protocol
-Status: Milestone 1 design; not implemented in Milestone 0.
+Status: the development lab implements room.join, presence.heartbeat, webrtc.offer/answer/ice and match.leave; server events include connection.ready, match.found, match.ended and error. The queue and sixty-second lifecycle below remain planned. See packages/protocol/README.md for the implemented envelope constraints.
 
 Envelope:
 ```json

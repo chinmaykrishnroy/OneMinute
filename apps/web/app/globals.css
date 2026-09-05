@@ -10,3 +10,15 @@ button { cursor: pointer; background: #d2ff7a; color: #152100; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 input, select { background: #1c2230; color: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #a1c4ff; outline-offset: 3px; }
+.setup, .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.check { flex-direction: row; align-items: center; padding: 12px; }
+.videos { display: grid; grid-template-columns: 3fr 1fr; gap: 16px; margin: 24px 0; }
+figure { margin: 0; min-width: 0; }
+video { width: 100%; aspect-ratio: 16/9; background: #05070b; border-radius: 12px; }
+figcaption { color: #b6bfcc; margin-top: 8px; }
+[role=alert] { color: #ffb4af; }
+form { display: flex; gap: 12px; align-items: end; }
+form label { flex: 1; }
+li { padding: 6px 0; overflow-wrap: anywhere; }
+@media(max-width: 650px) { .videos { grid-template-columns: 1fr; } .videos figure:last-child { width: 40%; } .setup label:not(.check), .setup input:not([type=checkbox]) { width: 100%; } }

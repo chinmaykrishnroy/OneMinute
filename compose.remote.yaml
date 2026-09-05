@@ -1,0 +1,9 @@
+# Linux VM override: TURN uses the host network so relay-to-relay traffic does not
+# depend on Docker bridge hairpin NAT. Never use Cloudflare Tunnel for these ports.
+services:
+  turn:
+    network_mode: host
+    ports: !reset []
+    environment:
+      TURN_HEALTH_ADDR: 127.0.0.1:8081
+      TURN_LISTEN_ADDR: :${TURN_PORT:-3478}

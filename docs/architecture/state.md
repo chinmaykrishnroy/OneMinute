@@ -1,7 +1,7 @@
 # State ownership
 Implemented:
 - PostgreSQL: versioned schema, users and profiles as the minimal durable foundation.
-- Redis: connected dependency with readiness probing; no domain state exists yet.
+- Redis: development rooms (10-minute TTL), presence (40-second TTL), atomic two-slot claims, room-scoped authorization, transient Pub/Sub delivery and room-creation rate counters.
 - Process memory: connection pools, configuration, logs and TURN transport allocations only.
 
 Planned live state: expiring Redis presence, queue membership, user-to-match mappings, match deadlines, extension votes, recent-pair exclusions and signaling delivery via Pub/Sub. The active socket terminates on one instance; its owner cannot be the authority for domain state.

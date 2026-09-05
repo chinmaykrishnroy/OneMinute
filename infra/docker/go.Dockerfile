@@ -4,7 +4,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 ARG TARGET=./apps/server/cmd/server
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/service ${TARGET}
+RUN --mount=type=cache,target=/root/.cache/go-build,sharing=locked CGO_ENABLED=0 GOMAXPROCS=2 go build -p 2 -trimpath -ldflags="-s -w" -o /out/service ${TARGET}
 
 FROM alpine:3.23
 RUN apk add --no-cache ca-certificates && addgroup -S app && adduser -S -G app app

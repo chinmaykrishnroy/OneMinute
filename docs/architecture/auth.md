@@ -7,4 +7,4 @@ Use a Secure, HttpOnly, SameSite cookie for an opaque application session. Store
 
 State-changing HTTP endpoints require strict Origin checks and CSRF protection appropriate to the cookie deployment. WebSocket handshakes validate the exact configured origin and the Go session. Do not place tokens in URLs, localStorage or logs.
 
-The upcoming networking lab must be explicitly enabled only in development, use short-lived room capabilities, and be forbidden in production. It is not application authentication.
+The networking lab is explicitly enabled only in development, uses short-lived room capabilities, and is forbidden in production. It is not application authentication.

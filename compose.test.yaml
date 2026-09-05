@@ -1,0 +1,31 @@
+# Verification runs on the deployment machine; no host Go/Node installation required.
+services:
+  verify-go:
+    profiles: [test]
+    image: golang:1.26.5
+    network_mode: host
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:ro
+      - go-mod-cache:/go/pkg/mod
+      - go-build-cache:/root/.cache/go-build
+    environment:
+      TEST_DATABASE_URL: postgres://${POSTGRES_USER:-encounter}:${POSTGRES_PASSWORD}@127.0.0.1:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-encounter}?sslmode=disable
+      TEST_REDIS_URL: redis://:${REDIS_PASSWORD}@127.0.0.1:${REDIS_PORT:-6379}/0
+      TEST_TURN_ADDR: 127.0.0.1:${TURN_PORT:-3478}
+      TEST_API_URL: http://127.0.0.1:${API_PORT:-8080}
+      TURN_SECRET: ${TURN_SECRET}
+      TURN_REALM: ${TURN_REALM:-local.encounter}
+      TURN_RELAY_MIN: ${TURN_RELAY_MIN:-49160}
+      TURN_RELAY_MAX: ${TURN_RELAY_MAX:-49180}
+    command: ["sh", "-ec", "go test -race ./... && go vet ./... && go test -race -tags integration -count=1 -timeout 120s -v ./apps/server/internal/migrations ./apps/server/internal/signaling ./services/turn ./services/rtc-probe"]
+  verify-web:
+    profiles: [test]
+    image: node:24-alpine
+    working_dir: /workspace
+    volumes:
+      - ./apps/web:/source:ro
+    command: ["sh", "-ec", "cp -a /source/. /workspace/ && npm ci && npm run typecheck && npm run lint && npm run build"]
+volumes:
+  go-mod-cache:
+  go-build-cache:
