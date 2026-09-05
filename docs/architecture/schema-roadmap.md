@@ -7,9 +7,9 @@ Status: migrations ship with the feature slice that owns them. Names below are c
 - Milestone 0: `users`, `profiles`, pgvector extension and migration metadata.
 - Milestone 2: `external_identities` keyed by provider plus stable provider subject; `sessions` with hashed secrets, expiry, last-seen and revocation.
 
-## Milestone 3 — Discovery foundation
+## Milestone 3 — Discovery foundation (implemented)
 
-Redis owns presence, queue entries, current session intent/language/interests, match claims and user-to-match mappings. PostgreSQL gains only the minimal directed `blocks(blocker_user_id, blocked_user_id, created_at)` record needed for real candidate exclusion. One unordered pair cannot bypass a block in either direction. Public block creation and management remain part of Milestone 5.
+Redis owns presence, queue entries, current session intent/language/interests, match claims and user-to-match mappings. PostgreSQL has the minimal directed `blocks(blocker_user_id, blocked_user_id, created_at)` record needed for real candidate exclusion. One unordered pair cannot bypass a block in either direction. Public block creation and management remain part of Milestone 5.
 
 Match state is initially live and finite in Redis. Its identifiers and participant ordering must be suitable for later durable encounter outcomes and mutual Connect creation. Session-scoped interests are not written to profile tables in this milestone.
 

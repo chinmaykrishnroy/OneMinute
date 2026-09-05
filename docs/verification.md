@@ -97,3 +97,22 @@ Remote verification passed: full Go race suite and vet; authentication lifecycle
 Not yet claimed: completing the real Google account selector, confirming the resulting production Google ID token against the live backend, and visually confirming the signed-in avatar/returning session/logout in a user account. That action requires an account holder to choose an account in Google’s UI. The automated verifier-boundary integration covers the same application session lifecycle with a controlled signed-credential verifier.
 
 The product architecture was updated before Milestone 3 to record the conversation-first product loop, optional intent model, separate Extend and Connect state machines, reconnect grace, durable connections and messaging, S3-compatible private media storage, schema sequencing and revised milestones. No Milestone 3 runtime feature was implemented in this checkpoint.
+
+The owner subsequently supplied a screenshot of the authenticated public `/app/discover` route, confirming that a real Google-backed application session reached the protected discovery UI and displayed the session-ready state. Returning-session persistence and logout remain available in the implementation and automated lifecycle test; a separate manual report of those two actions has not been recorded.
+
+## Milestone 3 discovery (2026-09-06)
+
+Implemented and deployed on `oneminute`:
+
+- Exact-Origin, application-session-authenticated WebSocket discovery endpoint with 64 KiB frame bounds and per-socket rate limiting.
+- Redis presence heartbeats, session-scoped intent/language/interests, queue membership, stale-entry cleanup, finite match state, user-to-match mappings, recent-pair TTLs and per-user Pub/Sub routing.
+- Candidate filtering for compatible current intent and language, mutual Dating opt-in, active accounts, directed blocks and recent pairs. Candidates rank by shared structured-interest count and queue age for this milestone.
+- Atomic Lua claim of both live, queued socket connections. Every queue mutation, match leave and WebRTC signal is bound to the active connection ID and server-owned match membership.
+- Cross-instance match and WebRTC signaling delivery, disconnect notification, and revalidated active-match recovery after reconnect.
+- Protected `/app/discover` UI with current intent, language and bounded interest selection, shared-interest match context and a responsive soft-neobrutalist layout.
+
+Remote verification passed: full Go race suite and vet; 20-way atomic claim contention; hostile-origin and unauthenticated WebSocket rejection; two Go HTTP instances sharing Redis; real PostgreSQL active-account/block checks; compatible match creation; shared-interest context; forged-match rejection; cross-instance offer delivery; disconnect/reconnect recovery; match leave; recent-pair avoidance; and blocked-pair exclusion. Existing auth, migration, signaling, TURN UDP/TCP and Pion normal/forced-relay integrations also passed. Frontend clean install, typecheck, lint and production build passed, and all deployed services were healthy.
+
+The public authentication boundary redirected an unsigned `/app/discover` request back to the Google sign-in page without browser console errors. The owner’s authenticated screenshot exposed an interest-chip overflow issue; the deployed fix uses a shrinking fieldset and responsive 130-pixel-minimum grid so options wrap within the card on desktop, tablet and mobile.
+
+Not yet claimed: a real two-account browser matchmaking session. The real integration suite exercises the same authenticated handlers, PostgreSQL/Redis state and cross-instance WebSocket flow with controlled test identities. Camera/video, the authoritative 60-second timer, Extend and complete reconnect grace are Milestone 4 work.

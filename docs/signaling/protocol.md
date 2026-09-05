@@ -1,5 +1,5 @@
 # Signaling protocol
-Status: the development lab implements room.join, presence.heartbeat, webrtc.offer/answer/ice and match.leave; server events include connection.ready, match.found, match.ended and error. Authenticated discovery and the encounter lifecycle below remain planned. See packages/protocol/README.md for the implemented envelope constraints.
+Status: the isolated development lab and authenticated discovery sockets are implemented. The authoritative encounter timer and voting events remain planned. See packages/protocol/README.md for implemented envelope constraints.
 
 Envelope:
 ```json

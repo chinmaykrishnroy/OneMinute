@@ -1,13 +1,13 @@
 # Matchmaking
-Status: architecture for Milestones 3 and 6; no production matching or embeddings are implemented yet.
+Status: Milestone 3 structured discovery is implemented. Semantic embeddings and the final weighted ranker remain Milestone 6 work.
 
 Each queue entry captures the authenticated user's current session intent, language choices and structured interests. Session intent has priority over profile-level allowed intents. A dating candidate is eligible only when both users explicitly selected compatible dating intent; mismatched private intent is never disclosed.
 
-For Milestone 3, interests are a bounded, validated session selection carried in Redis; durable profile interests arrive with richer profiles in Milestone 5. Block filtering requires a minimal durable block record and repository query in Milestone 3 so the eligibility rule is real and testable. The user-facing block/report workflow remains Milestone 5.
+For Milestone 3, interests are a bounded, validated session selection carried in Redis; durable profile interests arrive with richer profiles in Milestone 5. A minimal durable block record and repository query make candidate exclusion real and testable. The user-facing block/report workflow remains Milestone 5.
 
 Filter first: authenticated live user, unexpired queue entry, compatible session intent, compatible language, no active match, active account, no block in either direction, no recent pair and applicable safety constraints. Revalidate availability, block state and safety at the atomic claim boundary. Simple structured interests are enough for Milestone 3 and can produce shared-interest context such as “You both like Music and AI.”
 
-Rank eligible candidates with configuration-held weights:
+Milestone 3 ranks compatible candidates by shared structured-interest count, then queue age. Milestone 6 replaces that limited ordering with configuration-held weights:
 `0.55 * semanticSimilarity + 0.15 * queueWaitBonus + 0.10 * reputationScore + 0.20 * randomness`.
 Normalize each term to [0,1], clamp cosine similarity appropriately, bound the wait bonus, and use unbiased randomness. New users start with neutral reputation. Reports alone must not cause large score penalties.
 

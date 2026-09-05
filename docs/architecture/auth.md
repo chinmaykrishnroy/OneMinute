@@ -7,6 +7,6 @@ The browser uses Google Identity Services to obtain an ID token with a server-is
 
 Use a Secure, HttpOnly, SameSite cookie for an opaque application session. Store only a cryptographic hash of the random session secret in PostgreSQL with expiry and revocation. An opaque session checked in PostgreSQL works with disposable compute; short-lived access credentials and rotation metadata can be added if measurements justify them. Returning users reuse their application session rather than repeating Google login.
 
-State-changing HTTP endpoints require strict Origin checks and CSRF protection appropriate to the cookie deployment. Milestone 3 WebSocket handshakes must validate the exact configured origin and the Go session before presence or queue state is created. Reconnects repeat identity and match-membership checks. Do not place tokens in URLs, localStorage or logs.
+State-changing HTTP endpoints require strict Origin checks and CSRF protection appropriate to the cookie deployment. Discovery WebSocket handshakes validate the exact configured origin and the Go session before presence or queue state is created. Reconnects repeat identity and match-membership checks. Do not place tokens in URLs, localStorage or logs.
 
 The networking lab is explicitly enabled only in development, uses short-lived room capabilities, and is forbidden in production. It is not application authentication.

@@ -1,5 +1,5 @@
 # Architecture
-Status: Milestones 0–2 foundation, networking and identity. Later features below are architecture decisions, not claims of implementation.
+Status: Milestones 0–3 foundation, networking, identity and distributed discovery. Later features below are architecture decisions, not claims of implementation.
 
 One monorepo, one Go module (`example.com/encounter`), independently built binaries. The module is a neutral local import namespace; no repository is required at that URL. Branding lives in `apps/web/lib/brand.ts`.
 

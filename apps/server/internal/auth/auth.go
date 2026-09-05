@@ -20,6 +20,8 @@ import (
 
 const sessionLifetime = 30 * 24 * time.Hour
 
+var ErrUnauthenticated = errors.New("not signed in")
+
 type Identity struct {
 	Subject, Name, Picture string
 	EmailVerified          bool
@@ -189,18 +191,27 @@ func (h *Handler) google(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(h.sessionCookie())
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not signed in")
-		return
-	}
-	user, err := h.Repo.Current(r.Context(), hash(cookie.Value))
+	user, err := h.Authenticate(r)
 	if err != nil {
 		h.clearCookie(w, h.sessionCookie())
 		writeError(w, http.StatusUnauthorized, "not signed in")
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
+}
+
+// Authenticate resolves the opaque application-session cookie at every HTTP or
+// WebSocket boundary. Callers never accept a user ID asserted by the client.
+func (h *Handler) Authenticate(r *http.Request) (User, error) {
+	cookie, err := r.Cookie(h.sessionCookie())
+	if err != nil {
+		return User{}, ErrUnauthenticated
+	}
+	user, err := h.Repo.Current(r.Context(), hash(cookie.Value))
+	if err != nil {
+		return User{}, ErrUnauthenticated
+	}
+	return user, nil
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {

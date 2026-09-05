@@ -81,6 +81,7 @@ export function SignIn({ api }: { api: string }) {
   if (user) return <section className="identity-card" aria-label="Signed-in account">
     {user.avatarUrl ? <Image src={user.avatarUrl} alt="" width={52} height={52} unoptimized /> : <span className="avatar-fallback" aria-hidden="true">{user.displayName.slice(0, 1).toUpperCase()}</span>}
     <div><p className="eyebrow">Signed in</p><h2>{user.displayName}</h2><p>{user.googleEmailVerified ? "Google-verified account" : "Google account"}</p></div>
+    <a className="primary-link" href="/app/discover">Start discovering</a>
     <button className="quiet-button" onClick={() => void logout()}>Sign out</button>
   </section>;
 

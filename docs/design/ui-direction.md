@@ -23,3 +23,14 @@ Build functional vertical slices in the agreed milestone order. The current netw
 
 Discovery is conversation-first. Before a call, show minimal identity plus useful shared context such as compatible current intent and a few shared interests. Do not use swipe cards, photo-heavy profile judgment or public-feed patterns. Richer profile detail becomes appropriate after mutual Connect. Keep private one-sided Extend and Connect choices visually private until a mutual result exists.
 
+## Encounter layout across screens
+
+Use square video surfaces as the default visual frame, with `object-fit: cover` and face-centered composition. Provide a later “Fit full frame” option for users who prefer uncropped video. Keep the remote participant visually primary even when both panes have equal layout area.
+
+- Phone portrait: remote video occupies the upper half and the local preview the lower half. Name, status, timer and call controls sit in a readable scrim over the bottom of the local preview. Leave enough safe-area space for a persistent bottom tab navigator that can carry into a future mobile app.
+- Tablet portrait: use a stacked layout with a modestly larger remote pane. Tablet landscape: switch to a side-by-side layout while keeping touch-sized controls and avoiding desktop-density UI.
+- Desktop and wide screens: place the remote participant in the left half and the local participant in the right half. Center square video surfaces within each pane rather than stretching video to the viewport shape.
+- Very short or unusually wide screens: preserve both faces and controls by reducing gaps and moving secondary metadata into an overlay; never let primary call controls leave the viewport.
+
+The local preview has a camera-settings button that opens an accessible overlay. The first encounter implementation includes preview mirroring and input-device selection. Mirroring is local presentation only and must not silently transform the transmitted track. Advanced blur, effects and playful filters may later use a replaceable processed-video-track boundary (for example WebGL/MediaPipe/canvas capture), with an easy “None” state and performance fallback. Core calling must never depend on an effect pipeline.
+

@@ -8,6 +8,6 @@ export default function Home() {
       <div><p className="eyebrow">One conversation. A new connection.</p><h1>{brand.name}</h1><p className="hero-copy">Meet someone for 60 seconds. If you both choose to stay, keep talking.</p></div>
       <SignIn api={api} />
     </div>
-    <p className="development-note">Discovery is being built now. The networking lab is already live.</p>
+    <p className="development-note">The discovery preview is live. Authoritative 60-second encounters come next.</p>
   </main>;
 }

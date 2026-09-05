@@ -16,15 +16,17 @@ Public same-origin WebSocket signaling, browser-to-browser WebRTC, independent P
 
 Google ID-token verification, stable provider identity, secure hashed application sessions, basic profile identity, returning-session behavior and logout/revocation.
 
-## Planned product slices
+## Completed discovery
 
 ### Milestone 3 — Discovery
 
 Authenticated presence and sockets; queue membership; current session intent; language and session-scoped structured-interest compatibility; minimal durable block enforcement; recent-pair filtering; candidate selection; atomic two-user Redis claims; user-to-match mappings; finite match state; cross-instance routing; safe disconnect behavior. Match data must accommodate later lifecycle and private votes without implementing them now. Milestone 5 adds the user-facing block workflow and durable profile interests.
 
+## Planned product slices
+
 ### Milestone 4 — Encounter
 
-Authoritative 60-second lifecycle, server timestamps, Next/Skip, private mutual Extend, RTCDataChannel temporary chat, 30–60 second reconnect grace, cleanup/requeue and atomic expiry/extension handling.
+Authoritative 60-second lifecycle, server timestamps, responsive square-video encounter layout, local preview mirror/device settings, Next/Skip, private mutual Extend, RTCDataChannel temporary chat, 30–60 second reconnect grace, cleanup/requeue and atomic expiry/extension handling. Advanced camera effects remain an optional later enhancement behind a processed-track boundary.
 
 ### Milestone 5 — Social graph
 

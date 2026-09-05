@@ -2,9 +2,11 @@
 Implemented:
 - PostgreSQL: versioned schema, users, profiles, Google external identities and hashed, revocable application sessions.
 - Redis: development rooms (10-minute TTL), presence (40-second TTL), atomic two-slot claims, room-scoped authorization, transient Pub/Sub delivery and room-creation rate counters.
+- Redis discovery: authenticated presence (40-second TTL), session preference queue, atomic two-user claims, user-to-match mappings, finite match state, recent-pair exclusions, disconnect markers and per-user cross-instance Pub/Sub routing.
+- PostgreSQL discovery: directed block records used by server-side candidate eligibility.
 - Process memory: connection pools, configuration, logs and TURN transport allocations only.
 
-Planned live state: expiring Redis presence, queue membership, current session intent, user-to-match mappings, match deadlines, Extend votes, Connect votes while an encounter is active, reconnect grace, recent-pair exclusions and socket/signaling routing. The active socket terminates on one instance; its owner cannot be the authority for domain state.
+Planned encounter state adds authoritative match deadlines, Extend votes, Connect votes while an encounter is active and a bounded reconnect-grace deadline. The active socket terminates on one instance; its owner cannot be the authority for domain state.
 
 Pair claims and extension/expiry transitions use Lua atomically. No process-local mutex can arbitrate users across replicas. Redis loss ends live calls and requires requeue; PostgreSQL retains durable profiles and sessions. Redis uses noeviction so coordination keys are not silently evicted under memory pressure; application commands must handle OOM failures.
 

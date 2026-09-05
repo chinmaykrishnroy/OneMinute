@@ -2,7 +2,7 @@
 
 A conversation-first social application built around one promise: **Meet the person before you judge the profile.** Branding is temporary; internal names use **encounter**.
 
-**Current slice: Milestones 0–2 implemented.** The networking foundation and Google-backed application identity are in place. The next implementation slice is authenticated discovery and distributed matchmaking; see the [roadmap](docs/architecture/roadmap.md).
+**Current slice: Milestones 0–3 implemented.** The networking foundation, Google-backed application identity, authenticated presence and distributed discovery queue are in place. The next implementation slice is the authoritative 60-second encounter; see the [roadmap](docs/architecture/roadmap.md).
 
 The product loop is `DISCOVER → TALK → EXTEND → CONNECT → KEEP`. Discovery reveals enough shared context to start a conversation, while richer profiles and durable relationships come after mutual Connect. Dating is an optional compatible intent, not the product identity.
 

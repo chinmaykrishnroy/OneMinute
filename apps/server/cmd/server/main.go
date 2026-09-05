@@ -13,6 +13,7 @@ import (
 
 	"example.com/encounter/apps/server/internal/auth"
 	"example.com/encounter/apps/server/internal/config"
+	"example.com/encounter/apps/server/internal/discovery"
 	"example.com/encounter/apps/server/internal/signaling"
 	"example.com/encounter/apps/server/internal/transport"
 	"example.com/encounter/internal/ice"
@@ -56,13 +57,15 @@ func run(ctx context.Context, log *slog.Logger) error {
 	if cfg.GoogleClientID != "" {
 		authHandler.Verifier = auth.GoogleVerifier{Audience: cfg.GoogleClientID}
 	}
-	var register = []func(*http.ServeMux){authHandler.Register}
+	if len(os.Getenv("TURN_SECRET")) < 32 || os.Getenv("TURN_HOST") == "" {
+		return errors.New("TURN_SECRET and TURN_HOST are required")
+	}
+	host := os.Getenv("TURN_HOST")
+	iceProvider := ice.SharedSecretProvider{Secret: os.Getenv("TURN_SECRET"), URLs: []string{"stun:" + host, "turn:" + host + "?transport=udp", "turn:" + host + "?transport=tcp"}, TTL: 10 * time.Minute}
+	discoveryHandler := &discovery.Handler{Root: ctx, Store: discovery.Store{Redis: cache}, Repo: discovery.Repository{DB: pool}, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin, ICE: iceProvider}
+	var register = []func(*http.ServeMux){authHandler.Register, discoveryHandler.Register}
 	if cfg.LabEnabled {
-		if len(os.Getenv("TURN_SECRET")) < 32 || os.Getenv("TURN_HOST") == "" {
-			return errors.New("lab requires TURN_SECRET and TURN_HOST")
-		}
-		host := os.Getenv("TURN_HOST")
-		lab := &signaling.Lab{Root: ctx, Redis: cache, Origin: cfg.WebOrigin, ICE: ice.SharedSecretProvider{Secret: os.Getenv("TURN_SECRET"), URLs: []string{"stun:" + host, "turn:" + host + "?transport=udp", "turn:" + host + "?transport=tcp"}, TTL: 10 * time.Minute}}
+		lab := &signaling.Lab{Root: ctx, Redis: cache, Origin: cfg.WebOrigin, ICE: iceProvider}
 		register = append(register, lab.Register)
 	}
 	handler := transport.Handler(log, map[string]transport.Check{
@@ -70,7 +73,7 @@ func run(ctx context.Context, log *slog.Logger) error {
 		"redis":    func(ctx context.Context) error { return cache.Ping(ctx).Err() },
 		"schema": func(ctx context.Context) error {
 			var exists bool
-			err := pool.QueryRow(ctx, "SELECT to_regclass('public.profiles') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector')").Scan(&exists)
+			err := pool.QueryRow(ctx, "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.blocks') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector')").Scan(&exists)
 			if err != nil {
 				return err
 			}
