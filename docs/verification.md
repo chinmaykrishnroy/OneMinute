@@ -35,6 +35,25 @@ Executed on llm-04:
 
 The real transport tests exposed Docker bridge hairpin failures at the advertised TURN address. The Linux-only compose.remote.yaml places TURN on the host network and binds its health/metrics listener to 127.0.0.1. Re-running the failing transport tests and full regression then passed.
 
-Not yet verified: browser-to-browser video playback, physical camera/microphone permissions, browser control/cleanup interactions, Pion-to-browser interoperability, or public internet NAT traversal. Browser automation was rejected by automatic approval review due to the account usage limit. It was not bypassed. The networking implementation is committed as a tested development slice; Milestone 1 browser acceptance remains open.
+The initial browser attempt was blocked by the account usage limit. The later retry below succeeded. Physical camera/microphone permissions, Pion-to-browser interoperability and public internet NAT traversal remain unverified.
 
 Remote commands and access constraints: docs/remote-development.md.
+
+## Browser retry and UI direction (2026-09-05)
+
+The in-app browser loaded the application from llm-04 through SSH forwards for ports 3000 and 8080. No application server, build or test runner ran on the workstation; browser media capture/playback ran in the browser as intended.
+
+- Two browser peers joined a fresh room using the synthetic test pattern and silent audio source.
+- Both reported connected, host-to-host UDP candidate pairs and increasing inbound media counters.
+- Both remote videos played at 640x360, readyState 4 and paused false. This verifies synthetic video playback, not audible microphone capture.
+- DataChannel messages were delivered in both directions.
+- Mute/unmute and camera off/on controls toggled successfully.
+- Leave ended both peers, emptied chat, reset media counters and disabled call/chat controls. Video elements returned to zero dimensions, readyState 0 and paused true.
+- Both peers successfully joined a second fresh room and reconnected.
+- Neither test tab reported browser console errors.
+
+Browser relay testing is still pending: the remote configuration advertises private 10.160.3.131. The VM metadata reports public 34.100.213.131, but its firewall/public relay reachability has not been verified or changed. Earlier Pion forced-relay integration passed on llm-04; that is not a substitute for browser testing across public networks.
+
+Cloudflare dashboard routes have been documented, not created. The existing connector was found active. See cloudflare-testing.md for Access protection, same-origin web/API routing and separate TURN requirements. The approved UI direction is saved in AGENTS.md and docs/design/ui-direction.md.
+
+The shared UI stylesheet was updated to the approved visual direction. A clean frontend install, TypeScript check, lint and production build passed on llm-04. The rebuilt remote web service passed health checks, and the refreshed lab was visually inspected in the desktop browser.

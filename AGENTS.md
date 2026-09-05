@@ -1,6 +1,7 @@
 # Project instructions
 
 - Product name and current branding: OneMinute. Keep neutral internal module, schema and infrastructure names so branding can change.
+- Approved UI direction: **soft neobrutalist + modern minimal social UI hybrid**. Apply this to future product screens and UI changes; follow `docs/design/ui-direction.md`.
 - Build in the milestone order documented in README.md and docs/architecture. Preserve PostgreSQL durability, Redis distributed runtime state, Go application identity and browser-to-browser media.
 - Run application builds, containers and tests on `ssh llm-04`, in `/home/roy/OneMinute`. Do not run the application stack or test workloads on the user's local workstation. Local source edits and Git operations are fine.
 - Remote Docker commands require `sudo -n`. Use `compose.test.yaml` for Go race/integration and frontend verification without installing host toolchains.

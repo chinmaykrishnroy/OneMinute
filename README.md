@@ -8,6 +8,8 @@ A real-time conversation application being built in vertical milestones. Brandin
 
 Build and test on **llm-04** in **/home/roy/OneMinute**, per the project workflow. Use `ssh llm-04` and the commands in [remote development](docs/remote-development.md). The local application stack is stopped.
 
+For browser testing and the exact Cloudflare dashboard routes, see [Cloudflare testing](docs/cloudflare-testing.md). The approved visual direction is **soft neobrutalist + modern minimal social UI hybrid**, recorded in [UI direction](docs/design/ui-direction.md).
+
 ## Portable Compose setup
 
 Requires Docker Engine/Desktop with Linux containers and Compose. Node 24 and Go 1.26.5 are used for host checks; containers include build tools. No Google credentials are needed for this milestone.
