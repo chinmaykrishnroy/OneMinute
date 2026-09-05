@@ -1,8 +1,11 @@
 # Project instructions
 
 - Product name and current branding: OneMinute. Keep neutral internal module, schema and infrastructure names so branding can change.
+- Product promise: **Meet the person before you judge the profile.** Preserve the `DISCOVER → TALK → EXTEND → CONNECT → KEEP` loop. Dating is one optional intent; do not turn discovery into a swipe/profile-first flow or add a public social feed.
 - Approved UI direction: **soft neobrutalist + modern minimal social UI hybrid**. Apply this to future product screens and UI changes; follow `docs/design/ui-direction.md`.
 - Build in the milestone order documented in README.md and docs/architecture. Preserve PostgreSQL durability, Redis distributed runtime state, Go application identity and browser-to-browser media.
+- Keep Extend and Connect as separate private, match-scoped mutual-vote state machines. Extend only continues the encounter; Connect alone may create a durable relationship after both votes.
+- Keep temporary encounter chat on RTCDataChannel and persistent connection messaging server-backed and durable. Treat MinIO as an S3-compatible implementation detail behind object-storage interfaces.
 - Run application builds, containers and tests on `ssh oneminute`, in `/home/roy/OneMinute`. Do not run the application stack or test workloads on the user's local workstation. Local source edits and Git operations are fine.
 - Remote Docker commands require `sudo -n`. Use `compose.test.yaml` for Go race/integration and frontend verification without installing host toolchains.
 - Copy source changes to the remote workspace without .env, .git, node_modules, .next, caches or artifacts. Preserve the remote .env and durable data.

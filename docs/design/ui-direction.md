@@ -21,3 +21,5 @@ Avoid heavy decoration, dense dashboard layouts and oversized shadows that compe
 
 Build functional vertical slices in the agreed milestone order. The current networking lab is a diagnostic screen, not the finished social experience. The shared stylesheet now establishes the first visual foundation: warm neutral surfaces, mint and lilac controls, rounded borders, compact shadows and visible keyboard focus. The complete social screen design remains part of future feature slices.
 
+Discovery is conversation-first. Before a call, show minimal identity plus useful shared context such as compatible current intent and a few shared interests. Do not use swipe cards, photo-heavy profile judgment or public-feed patterns. Richer profile detail becomes appropriate after mutual Connect. Keep private one-sided Extend and Connect choices visually private until a mutual result exists.
+

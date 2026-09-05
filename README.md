@@ -1,8 +1,10 @@
 # OneMinute
 
-A real-time conversation application being built in vertical milestones. Branding is temporary; internal names use **encounter**.
+A conversation-first social application built around one promise: **Meet the person before you judge the profile.** Branding is temporary; internal names use **encounter**.
 
-**Current slice: Milestones 0–1 implemented.** Next.js, Go API, PostgreSQL/pgvector, Redis, independent Pion TURN, migrations, and a development networking lab. Public authentication and matchmaking come next.
+**Current slice: Milestones 0–2 implemented.** The networking foundation and Google-backed application identity are in place. The next implementation slice is authenticated discovery and distributed matchmaking; see the [roadmap](docs/architecture/roadmap.md).
+
+The product loop is `DISCOVER → TALK → EXTEND → CONNECT → KEEP`. Discovery reveals enough shared context to start a conversation, while richer profiles and durable relationships come after mutual Connect. Dating is an optional compatible intent, not the product identity.
 
 ## Development instance
 
@@ -12,7 +14,7 @@ For browser testing and the exact Cloudflare dashboard routes, see [Cloudflare t
 
 ## Portable Compose setup
 
-Requires Docker Engine/Desktop with Linux containers and Compose. Node 24 and Go 1.26.5 are used for host checks; containers include build tools. No Google credentials are needed for this milestone.
+Requires Docker Engine/Desktop with Linux containers and Compose. Node 24 and Go 1.26.5 are used for host checks; containers include build tools. Google sign-in requires `GOOGLE_CLIENT_ID`; no client secret is used by the ID-token flow.
 
 PowerShell, from this directory:
 
@@ -78,6 +80,6 @@ Compute remains disposable; PostgreSQL owns durable records and Redis will own d
 
 Application binaries run as non-root containers. Local web/API/database/cache ports bind to loopback. TURN has direct UDP/TCP access and a small bounded relay range; see [ICE/TURN](docs/webrtc/ice-turn.md) before LAN or VM use. The Compose file is for development, not a finished public deployment.
 
-For the networking lab, set RTC_LAB_ENABLED=true in .env and rebuild. Open http://localhost:3000/lab in two tabs. See [networking lab](docs/webrtc/networking-lab.md) for direct/forced-TURN testing and the optional Pion peer. The lab defaults off and is forbidden in production. Milestone 2 introduces Google verification and durable Go sessions before public access.
+For the networking lab, set RTC_LAB_ENABLED=true in .env and rebuild. Open http://localhost:3000/lab in two tabs. See [networking lab](docs/webrtc/networking-lab.md) for direct/forced-TURN testing and the optional Pion peer. The lab defaults off and is forbidden in production. It remains isolated from application identity and discovery.
 
-Read [architecture](docs/architecture/overview.md), [auth](docs/architecture/auth.md), [state](docs/architecture/state.md), [signaling](docs/signaling/protocol.md), and [matchmaking](docs/matchmaking/algorithm.md).
+Read [architecture](docs/architecture/overview.md), [roadmap](docs/architecture/roadmap.md), [schema roadmap](docs/architecture/schema-roadmap.md), [auth](docs/architecture/auth.md), [state](docs/architecture/state.md), [signaling](docs/signaling/protocol.md), [matchmaking](docs/matchmaking/algorithm.md), and [media storage](docs/architecture/media-storage.md).
