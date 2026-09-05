@@ -1,0 +1,32 @@
+name: checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.5'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: npm ci
+        working-directory: apps/web
+      - run: npm run typecheck && npm run lint && npm run build
+        working-directory: apps/web
+      - run: node scripts/init-env.mjs
+      - run: docker compose up --build --detach --wait --wait-timeout 180
+      - run: node scripts/smoke.mjs
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 100
+      - name: Stop stack
+        if: always()
+        run: docker compose down
