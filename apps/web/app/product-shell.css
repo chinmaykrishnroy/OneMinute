@@ -137,6 +137,7 @@ html {
 .messenger-shell {
   /* Keep the inbox header on the same reading column as every other tab. */
   max-width: 1120px;
+  padding-bottom: 24px;
 }
 .messenger {
   display: block;
@@ -150,7 +151,7 @@ html {
 .messenger.chat-selected {
   display: grid;
   grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.8fr);
-  height: calc(100dvh - 160px);
+  height: calc(100dvh - 144px);
 }
 .conversation-list {
   padding: 0 0 24px;
@@ -452,6 +453,9 @@ html {
     padding-inline: 18px;
     padding-bottom: calc(88px + env(safe-area-inset-bottom));
   }
+  .messenger-shell {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
   .product-header,
   .encounter-shell .app-header {
     height: 72px;
@@ -477,7 +481,7 @@ html {
   }
   .messenger.chat-selected {
     display: block;
-    height: calc(100dvh - 184px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 168px - env(safe-area-inset-bottom));
     min-height: 240px;
   }
   .chat-selected .conversation-list {
