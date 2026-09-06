@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { brand } from "@/lib/brand";
 import "./globals.css";
+import { CommunicationProvider } from "@/components/communication/runtime";
 
 export const metadata: Metadata = {
   title: { default: brand.name, template: `%s · ${brand.name}` },
@@ -13,5 +14,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en" suppressHydrationWarning><body><CommunicationProvider api={process.env.API_PUBLIC_URL ?? "http://localhost:8080"}>{children}</CommunicationProvider></body></html>;
 }

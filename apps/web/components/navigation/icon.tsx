@@ -1,6 +1,9 @@
 import type { SVGProps } from "react";
-export type IconName = "discover" | "messages" | "posts" | "profile" | "settings" | "connections" | "shield" | "logout" | "arrow" | "close";
+export type IconName = "discover" | "messages" | "posts" | "profile" | "settings" | "connections" | "shield" | "logout" | "arrow" | "close" | "phone" | "video" | "back";
 const paths: Record<IconName, string> = {
+ phone: "M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-5-2-2 2a14 14 0 0 1-7-7l2-2-2-5Z",
+ video: "M4 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2ZM16 10l6-4v12l-6-4",
+ back: "M19 12H5m6-6-6 6 6 6",
  discover: "m16.5 7.5-3 6-6 3 3-6 6-3ZM12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20",
  messages: "M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9H13a8.5 8.5 0 0 1 8 8v.5ZM8 11h8M8 15h4",
  posts: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM12 8v8M8 12h8",

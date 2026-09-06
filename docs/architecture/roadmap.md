@@ -40,6 +40,12 @@ Richer profiles and interests, block/report flows, reputation foundation, privat
 
 Durable direct messages, realtime delivery, private S3-compatible media storage initially backed by MinIO, presigned transfer, metadata and attachments, plus browser-to-browser audio/video calls between connected users using existing signaling/TURN infrastructure.
 
+Implemented communication core: PostgreSQL text history with retry-safe message IDs, Redis realtime delivery, delivered/read receipts, typing, conversation previews and unread counts, connection-only audio/video calls, durable in-app notifications, and per-account appearance/notification/privacy settings. Browser alerts work while the site remains open and permission is granted. Closed-app Web Push and mobile native push are not yet implemented.
+
+The first sign-in now leads to dedicated three-step onboarding before Discover. You remains the place to edit those preferences later. The shell has sticky headers, individual route titles, spaced icon navigation and a System-default theme with Light/Dark choices. Connected calls use a full-screen remote participant and a movable local preview, separately from discovery's equal-pane encounter layout.
+
+Next acceptance boundary: private object storage, authorized presigned uploads/downloads, attachment metadata and cleanup, followed by Milestone 6. Keep Posts as an explicitly unavailable placeholder; this milestone does not introduce a public feed. Two physical-device call acceptance and closed-app delivery must not be inferred from transport/unit tests.
+
 ### Milestone 6 — Intelligent discovery
 
 Qwen3 embeddings regenerated when relevant profile data changes, pgvector exact cosine ranking first, HNSW only after measurement, shared-context hints and an optional single icebreaker. Queue joins do not invoke embedding inference.

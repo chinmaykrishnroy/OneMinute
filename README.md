@@ -2,7 +2,7 @@
 
 A conversation-first social application built around one promise: **Meet the person before you judge the profile.** Branding is temporary; internal names use **encounter**.
 
-**Current slice: Milestones 0–5 implemented.** Networking, Google-backed identity, distributed discovery, the authoritative encounter and the durable social graph are in place. The next implementation slice is persistent communication; see the [roadmap](docs/architecture/roadmap.md).
+**Current slice: Milestones 0–5 plus the communication core of 5.5 implemented.** Connected users have durable text messaging, typing and receipts, audio/video calls, and notifications. First-time setup, app settings and system/light/dark appearance are in place. Private media attachments remain the next part of 5.5; see the [roadmap](docs/architecture/roadmap.md) and [communication guide](docs/architecture/communication.md).
 
 The product loop is `DISCOVER → TALK → EXTEND → CONNECT → KEEP`. Discovery reveals enough shared context to start a conversation, while richer profiles and durable relationships come after mutual Connect. Dating is an optional compatible intent, not the product identity.
 

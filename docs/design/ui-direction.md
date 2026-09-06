@@ -38,6 +38,14 @@ The local preview has a camera-settings button that opens an accessible overlay.
 
 Request an ideal 1080p camera source without a minimum resolution. WebRTC senders use balanced degradation so congestion control can reduce bitrate and spatial resolution as network conditions change instead of locking the call to one fixed quality. Reconnect recovery rebuilds both peers' `RTCPeerConnection` while reusing any still-live local media pipeline; the stable server-provided offerer role starts renegotiation.
 
+## Onboarding, communication and appearance
+
+First-time setup is a dedicated three-step welcome flow, never a redirect into the You editor. Explain that users can change these details in You later. Keep every destination's document title and visible header meaningful. Headers remain anchored while content scrolls. Mobile hover and selected states have a visible gap between tabs.
+
+Use a conversation list and chat pane on desktop/tablet, and a single-pane inbox with a back control on phones. Show real last-message previews, unread state, typing and delivered/read status. Connected-user calls have their own full-screen remote-video layout with a movable, aspect-aware self-preview and reachable audio/video/end controls. Use full-frame containment when a participant changes camera orientation.
+
+Appearance defaults to System and offers Light/Dark overrides. Use shared ink, muted, paper, canvas, accent, line and shadow tokens for readable surfaces in both modes. User settings include notification, typing and read-receipt choices; notification permissions are requested only through the enable button. The header notification center uses durable, genuine activity.
+
 ## App icon
 
 The canonical mark is `apps/web/app/icon.svg`: a text-free 1:00 clock with the product palette and geometry that remains clear at 32×32. `scripts/generate-icons.py` generates the PNG, Apple icon and multi-size ICO derivatives from the same geometry. Navigation titles use the root template `%s · OneMinute`, with `OneMinute` alone on the home page.

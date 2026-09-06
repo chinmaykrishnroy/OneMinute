@@ -28,7 +28,7 @@ export function SignIn({ api }: { api: string }) {
       try {
         const current = await fetch(new URL("/v1/auth/me", api), { credentials: "include" });
         if (!cancelled && current.ok) {
-          setUser(await current.json()); const p = await fetch(new URL("/v1/profile", api), { credentials: "include" }); if (p.ok && !cancelled) router.replace(profileReady(await p.json()) ? "/app/discover" : "/app/profile"); setMessage(""); return;
+          setUser(await current.json()); const p = await fetch(new URL("/v1/profile", api), { credentials: "include" }); if (p.ok && !cancelled) router.replace(profileReady(await p.json()) ? "/app/discover" : "/onboarding"); setMessage(""); return;
         }
         const response = await fetch(new URL("/v1/auth/config", api), { credentials: "include" });
         if (!response.ok) { if (!cancelled) setMessage("Sign-in is temporarily unavailable."); return; }
@@ -59,7 +59,7 @@ export function SignIn({ api }: { api: string }) {
           body: JSON.stringify({ credential: response.credential, nonce: config!.nonce }),
         });
         if (!result.ok) { setMessage("Google sign-in failed. Please try again."); return; }
-        setUser(await result.json()); setMessage(""); const p = await fetch(new URL("/v1/profile", api), { credentials: "include" }); if (p.ok) router.replace(profileReady(await p.json()) ? "/app/discover" : "/app/profile");
+        setUser(await result.json()); setMessage(""); const p = await fetch(new URL("/v1/profile", api), { credentials: "include" }); if (p.ok) router.replace(profileReady(await p.json()) ? "/app/discover" : "/onboarding");
       } catch {
         setMessage("Could not reach OneMinute. Please try again.");
       }

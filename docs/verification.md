@@ -1,5 +1,13 @@
 # Verification
 
+## Communication core and product UX (2026-09-06)
+
+Implemented: dedicated first-time onboarding; individual tab titles; corrected UTF-8 labels and a build-time regression check; sticky headers and spaced mobile tabs; persisted System/Light/Dark appearance and notification/typing/read-receipt settings; connection-only PostgreSQL text messaging; retry-safe client message IDs; realtime delivery, typing and receipts; inbox previews/unread counts; durable connection/message/call notifications; and browser-to-browser connected calls with audio/video switching and a draggable, aspect-aware self-preview.
+
+Executed on `ssh oneminute` with containerized verification: frontend clean install, UTF-8 guard, TypeScript, ESLint and production build (including onboarding/settings routes); Go race tests and vet; complete integration suite against PostgreSQL/Redis. New lifecycle coverage checks anonymous/hostile-origin/outsider rejection, settings persistence/defaults, message history and duplicate retry, incoming-only receipts, duplicate-receipt suppression, conversation preview/unread state, notification generation/read state, busy calls, caller/callee role enforcement, acceptance/offer/answer/media/heartbeat and block-driven cleanup. Existing discovery/social/TURN UDP/TCP and Pion direct/forced-relay media/DataChannel tests also pass.
+
+These transport tests do not certify the new connected-call browser UI against two physical devices. Pending acceptance: audible/visible two-account calls, microphone/camera permissions, camera switching on Android/iOS, orientation changes and dock dragging, bandwidth degradation, background tab behavior and device/network interruption. Closed-app Web Push/native push and private message attachments remain unimplemented; browser alerts currently require the site to remain open and permission to be granted. Posts remains an explicit placeholder without a public feed.
+
 ## Milestone 0 (2026-09-05)
 
 Executed locally on Windows with Docker Desktop Linux containers:

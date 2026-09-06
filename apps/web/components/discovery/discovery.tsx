@@ -103,7 +103,7 @@ export function Discovery({ api }: { api: string }) {
         const me = await fetch(new URL("/v1/profile", api), { credentials: "include" });
         if (!me.ok) { if (me.status === 401) router.replace("/"); else throw new Error("profile unavailable"); return; }
         const saved: Profile = await me.json(); if (stopped) return; setProfile(saved);
-        if (!profileReady(saved)) { router.replace("/app/profile"); return; }
+        if (!profileReady(saved)) { router.replace("/onboarding"); return; }
         preferencesRef.current = { intent: saved.discoveryIntent, languages: saved.languages, interests: saved.interests };
         const url = new URL("/v1/discovery/ws", api); url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
         const ws = new WebSocket(url); socket.current = ws; let ice: IceConfig = { iceServers: [] };
@@ -161,7 +161,7 @@ export function Discovery({ api }: { api: string }) {
       <p className="eyebrow">{phase === "queued" ? "Finding your next hello" : "A little curiosity goes a long way"}</p>
       <h1>{phase === "queued" ? "Someone new.\nAny moment now." : "One minute.\nA real connection."}</h1>
       <p className="discover-description">Meet the person before you judge the profile.<br />Start with a hello. See where it goes.</p>
-      <div className="saved-preferences"><span className="status-dot" /><strong>{intents.find(([value]) => value === profile?.discoveryIntent)?.[1] || "Your preferences"}</strong><span>{profile?.languages.map(value => languages.find(([code]) => code === value)?.[1] || value).join(" � ")}</span><Link href="/app/profile#preferences" aria-label="Edit discovery preferences"><Icon name="settings" width={20} height={20} /></Link></div>
+      <div className="saved-preferences"><span className="status-dot" /><strong>{intents.find(([value]) => value === profile?.discoveryIntent)?.[1] || "Your preferences"}</strong><span>{profile?.languages.map(value => languages.find(([code]) => code === value)?.[1] || value).join("  -  ")}</span><Link href="/app/profile#preferences" aria-label="Edit discovery preferences"><Icon name="settings" width={20} height={20} /></Link></div>
       {profile && profile.interests.length > 0 && <div className="discovery-interests">{profile.interests.map(value => <span key={value}>{interestLabel(value)}</span>)}</div>}
       {phase === "queued" ? <button className="start-discovery quiet-button" onClick={() => socket.current && send(socket.current, "queue.leave", {})}>Cancel search</button> : <button className="start-discovery" onClick={() => join()} disabled={phase !== "ready"}>Meet someone <Icon name="arrow" /></button>}
       <p role="status" className="discovery-status">{message}</p>

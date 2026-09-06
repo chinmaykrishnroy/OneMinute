@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AppHeader, MobileNav } from "@/components/navigation/mobile-nav";
@@ -85,7 +86,7 @@ export function Connections({ api }: { api: string }) {
         {items.map(item => <article className="connection-card" key={item.id}>
           {item.person.avatarUrl ? <Image src={item.person.avatarUrl} alt="" width={64} height={64} unoptimized /> : <span className="avatar-fallback">{item.person.displayName[0]}</span>}
           <div><h2>{item.person.displayName}</h2><p>{item.person.bio || "You met on OneMinute."}</p>{item.person.interests.length > 0 && <div className="chips">{item.person.interests.map(value => <span key={value}>{value}</span>)}</div>}</div>
-          <div className="connection-actions"><button className="quiet-button" onClick={() => void remove(item.id)}>Remove</button><button className="quiet-button" onClick={() => setReporting(item)}>Report</button><button className="danger-button" onClick={() => void block(item)}>Block</button></div>
+          <div className="connection-actions"><Link className="primary-link" href={`/app/messages?connection=${item.id}`}>Message</Link><button className="quiet-button" onClick={() => void remove(item.id)}>Remove</button><button className="quiet-button" onClick={() => setReporting(item)}>Report</button><button className="danger-button" onClick={() => void block(item)}>Block</button></div>
         </article>)}
         {!status && items.length === 0 && <p>No connections yet. Meet someone before you judge the profile.</p>}
       </div>

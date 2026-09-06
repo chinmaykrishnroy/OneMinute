@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"example.com/encounter/apps/server/internal/auth"
+	"example.com/encounter/apps/server/internal/communication"
 	"example.com/encounter/apps/server/internal/config"
 	"example.com/encounter/apps/server/internal/discovery"
 	"example.com/encounter/apps/server/internal/signaling"
@@ -66,7 +67,8 @@ func run(ctx context.Context, log *slog.Logger) error {
 	discoveryHandler := &discovery.Handler{Root: ctx, Store: discovery.Store{Redis: cache}, Repo: discovery.Repository{DB: pool}, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin, ICE: iceProvider}
 	socialHandler := &social.Handler{Repo: social.Repository{DB: pool}, Store: discoveryHandler.Store, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin}
 	go discoveryHandler.Run(ctx)
-	var register = []func(*http.ServeMux){authHandler.Register, discoveryHandler.Register, socialHandler.Register}
+	communicationHandler := &communication.Handler{DB: pool, Redis: cache, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin, ICE: iceProvider}
+	var register = []func(*http.ServeMux){authHandler.Register, discoveryHandler.Register, socialHandler.Register, communicationHandler.Register}
 	if cfg.LabEnabled {
 		lab := &signaling.Lab{Root: ctx, Redis: cache, Origin: cfg.WebOrigin, ICE: iceProvider}
 		register = append(register, lab.Register)
@@ -76,7 +78,7 @@ func run(ctx context.Context, log *slog.Logger) error {
 		"redis":    func(ctx context.Context) error { return cache.Ping(ctx).Err() },
 		"schema": func(ctx context.Context) error {
 			var exists bool
-			err := pool.QueryRow(ctx, "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.blocks') IS NOT NULL AND to_regclass('public.connections') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector')").Scan(&exists)
+			err := pool.QueryRow(ctx, "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.blocks') IS NOT NULL AND to_regclass('public.connections') IS NOT NULL AND to_regclass('public.messages') IS NOT NULL AND to_regclass('public.user_settings') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector')").Scan(&exists)
 			if err != nil {
 				return err
 			}
