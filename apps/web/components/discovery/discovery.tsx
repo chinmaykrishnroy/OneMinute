@@ -3,18 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { MobileNav } from "@/components/navigation/mobile-nav";
+import { AppHeader, MobileNav } from "@/components/navigation/mobile-nav";
 
-type User = { id: string; displayName: string; avatarUrl: string };
+import { Profile, profileReady, intents, languages, interestLabel } from "@/lib/preferences";
+import { Icon } from "@/components/navigation/icon";
 type Peer = { id: string; displayName: string; avatarUrl: string };
 type IceConfig = { iceServers: RTCIceServer[] };
 type Match = { id: string; peer: Peer; sharedInterests: string[]; intent?: string; offerer: boolean; expiresAt: number; extended: boolean; connected: boolean };
 type Phase = "connecting" | "ready" | "queued" | "matched" | "offline";
 type Envelope = { version: 1; type: string; matchId?: string; payload: Record<string, unknown> };
-
-const intents = [["surprise_me", "Surprise me"], ["new_friends", "New friends"], ["dating", "Dating"], ["gaming", "Gaming"], ["language_exchange", "Language exchange"], ["tech_ideas", "Tech / ideas"], ["professional_networking", "Professional networking"]] as const;
-const languages = [["en", "English"], ["hi", "Hindi"], ["bn", "Bengali"], ["es", "Spanish"], ["fr", "French"], ["de", "German"], ["ja", "Japanese"]] as const;
-const interests = ["ai", "art", "books", "films", "fitness", "gaming", "music", "nature", "photography", "science", "technology", "travel"];
 
 export function Discovery({ api }: { api: string }) {
   const router = useRouter();
@@ -26,16 +23,15 @@ export function Discovery({ api }: { api: string }) {
   const matchRef = useRef<Match | null>(null), requeue = useRef(false);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
   const preferencesRef = useRef({ intent: "surprise_me", languages: ["en"], interests: ["music", "technology"] });
-  const [phase, setPhase] = useState<Phase>("connecting"), [user, setUser] = useState<User | null>(null);
+  const [phase, setPhase] = useState<Phase>("connecting");
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [match, setMatch] = useState<Match | null>(null), [message, setMessage] = useState("Checking your session…");
-  const [intent, setIntent] = useState("surprise_me"), [language, setLanguage] = useState("en");
-  const [selected, setSelected] = useState<string[]>(["music", "technology"]), [seconds, setSeconds] = useState(60);
+  const [seconds, setSeconds] = useState(60);
   const [mirror, setMirror] = useState(true), [settingsOpen, setSettingsOpen] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]), [camera, setCamera] = useState("");
   const [chat, setChat] = useState<string[]>([]), [draft, setDraft] = useState("");
   const [safetyOpen, setSafetyOpen] = useState(false), [reportCategory, setReportCategory] = useState("spam"), [reportDetails, setReportDetails] = useState("");
 
-  useEffect(() => { preferencesRef.current = { intent, languages: [language], interests: selected }; }, [intent, language, selected]);
   useEffect(() => { matchRef.current = match; }, [match]);
   useEffect(() => { mirrorRef.current = mirror; }, [mirror]);
   useEffect(() => { if (match && localVideo.current && localStream.current) localVideo.current.srcObject = localStream.current; }, [match]);
@@ -104,13 +100,16 @@ export function Discovery({ api }: { api: string }) {
     };
     async function connect() {
       try {
-        const me = await fetch(new URL("/v1/auth/me", api), { credentials: "include" });
-        if (!me.ok) { router.replace("/"); return; } if (stopped) return; setUser(await me.json());
+        const me = await fetch(new URL("/v1/profile", api), { credentials: "include" });
+        if (!me.ok) { if (me.status === 401) router.replace("/"); else throw new Error("profile unavailable"); return; }
+        const saved: Profile = await me.json(); if (stopped) return; setProfile(saved);
+        if (!profileReady(saved)) { router.replace("/app/profile"); return; }
+        preferencesRef.current = { intent: saved.discoveryIntent, languages: saved.languages, interests: saved.interests };
         const url = new URL("/v1/discovery/ws", api); url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
         const ws = new WebSocket(url); socket.current = ws; let ice: IceConfig = { iceServers: [] };
         ws.onmessage = async event => {
           let incoming: Envelope; try { incoming = parse(event.data); } catch { ws.close(1002, "invalid server event"); return; }
-          if (incoming.type === "connection.ready") { ice = incoming.payload.ice as IceConfig; setPhase("ready"); setMessage("Choose what you feel like talking about today."); }
+          if (incoming.type === "connection.ready") { ice = incoming.payload.ice as IceConfig; setPhase("ready"); setMessage("Your preferences are set. A new conversation is one tap away."); }
           else if (incoming.type === "queue.joined") { setPhase("queued"); setMessage("Looking for someone compatible…"); }
           else if (incoming.type === "queue.left") { setPhase("ready"); setMessage("You left the queue."); }
           else if (incoming.type === "match.found" && incoming.matchId) {
@@ -142,14 +141,13 @@ export function Discovery({ api }: { api: string }) {
 
   function join(event?: FormEvent) { event?.preventDefault(); if (socket.current?.readyState === WebSocket.OPEN) { send(socket.current, "queue.join", preferencesRef.current); setMessage("Joining discovery…"); } }
   function matchAction(type: "match.leave" | "match.skip" | "match.extend" | "match.connect") { if (!socket.current || !match) return; if (type === "match.skip") requeue.current = true; send(socket.current, type, {}, match.id); }
-  function toggleInterest(value: string) { setSelected(current => current.includes(value) ? current.filter(item => item !== value) : current.length < 8 ? [...current, value] : current); }
   function sendChat(event: FormEvent) { event.preventDefault(); const text = draft.trim().slice(0, 500); if (!text || channel.current?.readyState !== "open") return; channel.current.send(text); setChat(items => [...items, `You: ${text}`]); setDraft(""); }
   async function switchCamera(deviceId: string) { setCamera(deviceId); try { const nextStream = await navigator.mediaDevices.getUserMedia({ video: { ...adaptiveVideoConstraints(), ...(deviceId ? { deviceId: { exact: deviceId } } : {}) } }); const source = cameraSource.current, current = rawStream.current; if (!source || !current) { nextStream.getTracks().forEach(track => track.stop()); return; } source.srcObject = nextStream; await source.play(); current.getVideoTracks().forEach(track => { track.stop(); current.removeTrack(track); }); current.addTrack(nextStream.getVideoTracks()[0]); } catch { setMessage("Could not switch cameras."); } }
   async function blockPeer() { if (!match) return; const response = await fetch(new URL("/v1/blocks", api), { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId: match.peer.id, matchId: match.id }) }); if (response.ok) { setSafetyOpen(false); setMessage("Blocked. You will not be matched again."); } else setMessage("Could not block this person."); }
   async function reportPeer(event: FormEvent) { event.preventDefault(); if (!match) return; const response = await fetch(new URL("/v1/reports", api), { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId: match.peer.id, matchId: match.id, category: reportCategory, details: reportDetails }) }); if (response.ok) { setSafetyOpen(false); setMessage("Report received. Thank you for helping keep OneMinute safe."); } else setMessage("Could not submit the report."); }
 
   return <main className={match ? "encounter-shell" : "discover-shell"}>
-    <header className="app-header"><Link className="wordmark" href="/">OneMinute</Link><nav className="desktop-nav"><Link href="/app/discover">Discover</Link><Link href="/app/connections">Connections</Link><Link href="/app/profile">Profile</Link></nav>{user && <span>Hi, {user.displayName}</span>}</header>
+    <AppHeader title="Discover" />
     {match ? <section className="encounter" aria-live="polite">
       <div className="encounter-top"><div><p className="eyebrow">Live encounter</p><strong>{match.peer.displayName}</strong></div><div className="encounter-meta"><button className="safety-button" onClick={() => setSafetyOpen(true)}>Safety</button><output className={match.extended ? "timer extended" : "timer"}>{match.extended ? "Extended" : `0:${String(seconds).padStart(2, "0")}`}</output></div></div>
       <div className="video-stage"><figure className="video-tile remote-tile"><video ref={remoteVideo} autoPlay playsInline /><figcaption>{match.peer.displayName}</figcaption></figure><figure className="video-tile local-tile"><video ref={localVideo} autoPlay muted playsInline /><figcaption>You</figcaption><button className="camera-settings" onClick={() => setSettingsOpen(true)} aria-label="Camera settings">⚙</button><div className="local-overlay-actions"><EncounterActions match={match} act={matchAction} /></div></figure></div>
@@ -158,7 +156,18 @@ export function Discovery({ api }: { api: string }) {
       <form className="temp-chat" onSubmit={sendChat}><div className="chat-log" aria-live="polite">{chat.length ? chat.map((item, index) => <p key={index}>{item}</p>) : <p>Messages stay between your browsers and disappear after this encounter.</p>}</div><label><span className="sr-only">Temporary message</span><input value={draft} onChange={event => setDraft(event.target.value)} maxLength={500} placeholder="Say something…" /></label><button>Send</button></form>
       {settingsOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSettingsOpen(false)}><div className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="camera-title" onMouseDown={event => event.stopPropagation()}><div className="settings-heading"><h2 id="camera-title">Camera</h2><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button></div><label className="check"><input type="checkbox" checked={mirror} onChange={event => setMirror(event.target.checked)} /> Mirror video for both people</label><label>Camera<select value={camera} onChange={event => void switchCamera(event.target.value)}><option value="">Default camera</option>{devices.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || "Camera"}</option>)}</select></label><p>Your preview is exactly what the other person receives. Selfie-style mirroring is on by default.</p></div></div>}
       {safetyOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSafetyOpen(false)}><form className="settings-panel safety-panel" onSubmit={reportPeer} onMouseDown={event => event.stopPropagation()}><div className="settings-heading"><h2>Safety</h2><button type="button" className="icon-button" onClick={() => setSafetyOpen(false)} aria-label="Close">×</button></div><label>Reason<select value={reportCategory} onChange={event => setReportCategory(event.target.value)}><option value="spam">Spam</option><option value="harassment">Harassment</option><option value="sexual_content">Sexual content</option><option value="hate">Hate</option><option value="violence">Violence</option><option value="underage">Possible minor</option><option value="other">Other</option></select></label><label>Details<textarea value={reportDetails} onChange={event => setReportDetails(event.target.value)} maxLength={500} /></label><button>Submit report</button><button type="button" className="danger-button" onClick={() => void blockPeer()}>Block and end encounter</button></form></div>}
-    </section> : <section className="discovery-card"><p className="eyebrow">Discover</p><h1>Who would you like to meet?</h1><p>Your choice applies to this session. Dating only matches with another person who chose Dating.</p><form className="preference-form" onSubmit={join}><label>Current intent<select value={intent} onChange={event => setIntent(event.target.value)} disabled={phase === "queued"}>{intents.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label><label>Conversation language<select value={language} onChange={event => setLanguage(event.target.value)} disabled={phase === "queued"}>{languages.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label><fieldset disabled={phase === "queued"}><legend>A few things you enjoy</legend><div className="interest-grid">{interests.map(item => <label className="interest" key={item}><input type="checkbox" checked={selected.includes(item)} onChange={() => toggleInterest(item)} />{label(item)}</label>)}</div></fieldset>{phase === "queued" ? <button type="button" className="quiet-button" onClick={() => socket.current && send(socket.current, "queue.leave", {})}>Leave queue</button> : <button type="submit" disabled={phase !== "ready"}>Start discovering</button>}</form><p role="status" className="auth-status">{message}</p></section>}
+    </section> : <section className="discover-home">
+      <div className="discovery-orbit" aria-hidden="true"><span /><Icon name="discover" width={72} height={72} /><span /></div>
+      <p className="eyebrow">{phase === "queued" ? "Finding your next hello" : "A little curiosity goes a long way"}</p>
+      <h1>{phase === "queued" ? "Someone new.\nAny moment now." : "One minute.\nA real connection."}</h1>
+      <p className="discover-description">Meet the person before you judge the profile.<br />Start with a hello. See where it goes.</p>
+      <div className="saved-preferences"><span className="status-dot" /><strong>{intents.find(([value]) => value === profile?.discoveryIntent)?.[1] || "Your preferences"}</strong><span>{profile?.languages.map(value => languages.find(([code]) => code === value)?.[1] || value).join(" � ")}</span><Link href="/app/profile#preferences" aria-label="Edit discovery preferences"><Icon name="settings" width={20} height={20} /></Link></div>
+      {profile && profile.interests.length > 0 && <div className="discovery-interests">{profile.interests.map(value => <span key={value}>{interestLabel(value)}</span>)}</div>}
+      {phase === "queued" ? <button className="start-discovery quiet-button" onClick={() => socket.current && send(socket.current, "queue.leave", {})}>Cancel search</button> : <button className="start-discovery" onClick={() => join()} disabled={phase !== "ready"}>Meet someone <Icon name="arrow" /></button>}
+      <p role="status" className="discovery-status">{message}</p>
+      <div className="how-it-works"><div><strong>01</strong><span>Talk for a minute</span></div><div><strong>02</strong><span>Both choose to stay</span></div><div><strong>03</strong><span>Connect & keep in touch</span></div></div>
+    </section>}
+
     <MobileNav current="discover" />
   </main>;
 }

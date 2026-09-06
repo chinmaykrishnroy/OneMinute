@@ -23,6 +23,8 @@ Build functional vertical slices in the agreed milestone order. The networking l
 
 Discovery is conversation-first. Before a call, show minimal identity plus useful shared context such as compatible current intent and a few shared interests. Do not use swipe cards, photo-heavy profile judgment or public-feed patterns. Richer profile detail becomes appropriate after mutual Connect. Keep private one-sided Extend and Connect choices visually private until a mutual result exists.
 
+The app shell uses four future-mobile destinations: Discover, Messages, Posts and You. Discover is the ready-to-meet home after profile setup. You is the account hub for identity, discovery preferences, connections, blocked people and settings. Messages and Posts may show clear coming-soon states until their milestones are implemented; they should not fabricate activity. Use icons with accessible labels in compact mobile navigation, a labeled rail on desktop, and a compact icon rail on tablet.
+
 ## Encounter layout across screens
 
 Use square video surfaces as the default visual frame, with `object-fit: cover` and face-centered composition. Provide a later “Fit full frame” option for users who prefer uncropped video. Keep the remote participant visually primary even when both panes have equal layout area.

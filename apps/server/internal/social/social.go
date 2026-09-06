@@ -23,6 +23,7 @@ var reportCategories = map[string]bool{"spam": true, "harassment": true, "sexual
 var languagePattern = regexp.MustCompile(`^[a-z]{2,3}(?:-[A-Z]{2})?$`)
 
 type Profile struct {
+	DiscoveryIntent string `json:"discoveryIntent,omitempty"`
 	ID          string   `json:"id"`
 	DisplayName string   `json:"displayName"`
 	AvatarURL   string   `json:"avatarUrl"`
@@ -43,17 +44,19 @@ func (r Repository) Profile(ctx context.Context, userID string) (Profile, error)
 	err := r.DB.QueryRow(ctx, `SELECT u.id::text,p.display_name,p.avatar_url,p.bio,COALESCE(p.country_code,''),
 		COALESCE((SELECT array_agg(interest ORDER BY interest) FROM profile_interests WHERE user_id=u.id),'{}'),
 		COALESCE((SELECT array_agg(language_code ORDER BY language_code) FROM profile_languages WHERE user_id=u.id),'{}')
-		FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active'`, userID).Scan(&p.ID, &p.DisplayName, &p.AvatarURL, &p.Bio, &p.CountryCode, &p.Interests, &p.Languages)
+		,p.discovery_intent FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.status='active'`, userID).Scan(&p.ID, &p.DisplayName, &p.AvatarURL, &p.Bio, &p.CountryCode, &p.Interests, &p.Languages, &p.DiscoveryIntent)
 	return p, err
 }
 
 func (r Repository) UpdateProfile(ctx context.Context, userID string, p Profile) (Profile, error) {
+	if p.DiscoveryIntent == "" { p.DiscoveryIntent = "surprise_me" }
+	p.DisplayName = strings.TrimSpace(p.DisplayName)
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return Profile{}, err
 	}
 	defer tx.Rollback(ctx)
-	command, err := tx.Exec(ctx, `UPDATE profiles SET display_name=$2,bio=$3,country_code=NULLIF($4,''),updated_at=now() WHERE user_id=$1`, userID, p.DisplayName, p.Bio, p.CountryCode)
+	command, err := tx.Exec(ctx, `UPDATE profiles SET display_name=$2,bio=$3,country_code=NULLIF($4,''),discovery_intent=$5,updated_at=now() WHERE user_id=$1`, userID, p.DisplayName, p.Bio, p.CountryCode, p.DiscoveryIntent)
 	if err != nil || command.RowsAffected() != 1 {
 		return Profile{}, errors.New("profile unavailable")
 	}
@@ -378,6 +381,7 @@ func peer(m discovery.MatchState, user string) string {
 	return m.UserA
 }
 func validProfile(p Profile) bool {
+	if !map[string]bool{"surprise_me":true,"new_friends":true,"dating":true,"gaming":true,"language_exchange":true,"tech_ideas":true,"professional_networking":true}[p.DiscoveryIntent] { return false }
 	p.DisplayName = strings.TrimSpace(p.DisplayName)
 	if len([]rune(p.DisplayName)) < 1 || len([]rune(p.DisplayName)) > 80 || len([]rune(p.Bio)) > 500 || (!country(p.CountryCode)) {
 		return false

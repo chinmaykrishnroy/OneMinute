@@ -92,7 +92,7 @@ func decode(data []byte) (Envelope, error) {
 
 func normalizePreferences(value Preferences) (Preferences, error) {
 	value.Intent = strings.TrimSpace(strings.ToLower(value.Intent))
-	if !allowedIntents[value.Intent] || len(value.Languages) == 0 || len(value.Languages) > 3 || len(value.Interests) > 8 {
+	if !allowedIntents[value.Intent] || len(value.Languages) == 0 || len(value.Languages) > 5 || len(value.Interests) > 12 {
 		return Preferences{}, errors.New("invalid preferences")
 	}
 	var ok bool

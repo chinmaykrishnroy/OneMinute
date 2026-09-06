@@ -42,8 +42,8 @@ func TestProfileConnectionReportAndBlockLifecycle(t *testing.T) {
 		_, _ = db.Exec(context.Background(), "DELETE FROM users WHERE id=ANY($1::uuid[])", ids)
 	}()
 	repo := social.Repository{DB: db}
-	updated, err := repo.UpdateProfile(ctx, ids[0], social.Profile{DisplayName: "Social One", Bio: "Here to learn.", CountryCode: "IN", Interests: []string{"ai", "music"}, Languages: []string{"en", "hi"}})
-	if err != nil || updated.Bio != "Here to learn." || len(updated.Interests) != 2 || len(updated.Languages) != 2 {
+	updated, err := repo.UpdateProfile(ctx, ids[0], social.Profile{DiscoveryIntent: "language_exchange", DisplayName: "Social One", Bio: "Here to learn.", CountryCode: "IN", Interests: []string{"ai", "music"}, Languages: []string{"en", "hi"}})
+	if err != nil || updated.DiscoveryIntent != "language_exchange" || updated.Bio != "Here to learn." || len(updated.Interests) != 2 || len(updated.Languages) != 2 {
 		t.Fatalf("profile update: %+v err=%v", updated, err)
 	}
 	matchID := testUUID()

@@ -1,10 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { MobileNav } from "@/components/navigation/mobile-nav";
+import { AppHeader, MobileNav } from "@/components/navigation/mobile-nav";
 
 type Person = {
   id: string;
@@ -79,7 +78,7 @@ export function Connections({ api }: { api: string }) {
   }
 
   return <main className="social-shell">
-    <header className="app-header"><Link className="wordmark" href="/">OneMinute</Link><nav className="desktop-nav"><Link href="/app/discover">Discover</Link><Link href="/app/connections">Connections</Link><Link href="/app/profile">Profile</Link></nav></header>
+    <AppHeader title="Connections" />
     <section className="social-card">
       <p className="eyebrow">Keep</p><h1>Your connections</h1><p>These are people you both chose after meeting.</p><p role="status">{status}</p>
       <div className="connection-list">

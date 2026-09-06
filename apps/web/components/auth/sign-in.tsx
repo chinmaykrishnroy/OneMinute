@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { profileReady } from "@/lib/preferences";
 import { useEffect, useRef, useState } from "react";
 
 type User = { id: string; displayName: string; avatarUrl: string; newUser: boolean; googleEmailVerified: boolean };
@@ -14,6 +16,7 @@ type GoogleAccounts = {
 declare global { interface Window { google?: { accounts: { id: GoogleAccounts } } } }
 
 export function SignIn({ api }: { api: string }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [message, setMessage] = useState("Checking your session…");
@@ -25,7 +28,7 @@ export function SignIn({ api }: { api: string }) {
       try {
         const current = await fetch(new URL("/v1/auth/me", api), { credentials: "include" });
         if (!cancelled && current.ok) {
-          setUser(await current.json()); setMessage(""); return;
+          setUser(await current.json()); const p = await fetch(new URL("/v1/profile", api), { credentials: "include" }); if (p.ok && !cancelled) router.replace(profileReady(await p.json()) ? "/app/discover" : "/app/profile"); setMessage(""); return;
         }
         const response = await fetch(new URL("/v1/auth/config", api), { credentials: "include" });
         if (!response.ok) { if (!cancelled) setMessage("Sign-in is temporarily unavailable."); return; }
@@ -37,7 +40,7 @@ export function SignIn({ api }: { api: string }) {
     }
     void load();
     return () => { cancelled = true; };
-  }, [api]);
+  }, [api, router]);
 
   useEffect(() => {
     if (!config?.enabled || !button.current) return;
@@ -56,7 +59,7 @@ export function SignIn({ api }: { api: string }) {
           body: JSON.stringify({ credential: response.credential, nonce: config!.nonce }),
         });
         if (!result.ok) { setMessage("Google sign-in failed. Please try again."); return; }
-        setUser(await result.json()); setMessage("");
+        setUser(await result.json()); setMessage(""); const p = await fetch(new URL("/v1/profile", api), { credentials: "include" }); if (p.ok) router.replace(profileReady(await p.json()) ? "/app/discover" : "/app/profile");
       } catch {
         setMessage("Could not reach OneMinute. Please try again.");
       }
@@ -66,7 +69,7 @@ export function SignIn({ api }: { api: string }) {
       const script = document.createElement("script"); script.src = "https://accounts.google.com/gsi/client"; script.async = true; script.onload = start; script.onerror = () => setMessage("Could not load Google sign-in."); document.head.appendChild(script);
     }
     return () => { disposed = true; };
-  }, [api, config]);
+  }, [api, config, router]);
 
   async function logout() {
     try {
