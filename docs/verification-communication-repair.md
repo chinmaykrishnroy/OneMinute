@@ -14,6 +14,8 @@ All builds and automated tests ran in containers on `oneminute`. No app stack or
 
 ## Remaining physical acceptance
 
+Deployment: runtime revision `06df5d5` was pulled from `origin/main`, rebuilt and deployed on `oneminute`. Gateway, PostgreSQL, Redis, server, TURN and web report healthy. Readiness confirms PostgreSQL, Redis and schema; public Cloudflare `/healthz` passes, and unsigned `/v1/moments` returns 401. The remote working tree is clean. Environment files and durable volumes were preserved.
+
 Two real signed-in accounts on representative phone/desktop hardware must verify camera permissions, microphone/video synchronization under sustained load, front/rear switching, autoplay behavior, orientation, and calls across separate networks. Safari/Firefox compatibility, mobile backgrounding and bandwidth-dependent resolution changes need device acceptance. Closed-app Web Push/native push and private media attachments remain future milestone work.
 
 Moments is text only. The server excludes expired rows immediately and periodically deletes them; database backups have separate retention. Browser fixtures do not claim real push delivery or real Google-account end-to-end coverage.
