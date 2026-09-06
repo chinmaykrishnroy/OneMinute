@@ -137,3 +137,9 @@ Still requires manual acceptance with two real authenticated accounts and physic
 The camera path now draws the selected input into a canvas-backed track used by both the local preview and WebRTC sender. Selfie-style mirroring is enabled by default, and changing it updates both views. Recent pairs remain lower priority, but the matcher may claim one when no fresh compatible candidate is available; this allows two test accounts to meet repeatedly without waiting for the recent-pair TTL.
 
 Remote automated verification covers the recent-pair fallback, the full Go race/vet and integration regression suite, TURN UDP/TCP, Pion normal/forced-relay media, and frontend typecheck, lint and production build. The updated deployment is healthy. Public checks return the generated SVG, PNG, ICO and web manifest with their expected content types, and `/app/discover` renders `Discover · OneMinute`. Visual equivalence of the local and remote physical-camera image, including a live mirror toggle, remains a two-device manual check.
+
+### Encounter media recovery amendment
+
+After a manual report that returning from Home notified the waiting peer without restoring video, both sides now rebuild their peer connection on `peer.reconnected`; the designated offerer renegotiates while an existing camera pipeline is reused. Camera acquisition requests ideal 1920×1080 with no minimum, and the sender selects balanced degradation so the browser's WebRTC congestion controller may reduce resolution and bitrate under constrained bandwidth.
+
+Frontend typecheck, lint and production build passed on `oneminute`. A real two-account Home → Discover recovery and observing resolution changes under controlled bandwidth remain manual browser checks; the implementation does not claim exact resolution thresholds because the browser chooses them from live congestion signals and device capabilities.

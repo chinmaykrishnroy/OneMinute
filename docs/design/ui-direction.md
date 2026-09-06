@@ -34,6 +34,8 @@ Use square video surfaces as the default visual frame, with `object-fit: cover` 
 
 The local preview has a camera-settings button that opens an accessible overlay. The encounter defaults to a selfie-style mirrored camera and input-device selection. The preview and transmitted track use the same canvas-processed video, so changing the mirror setting changes what both people see. Advanced blur, effects and playful filters may later extend this processed-video-track boundary (for example WebGL/MediaPipe), with an easy “None” state and performance fallback.
 
+Request an ideal 1080p camera source without a minimum resolution. WebRTC senders use balanced degradation so congestion control can reduce bitrate and spatial resolution as network conditions change instead of locking the call to one fixed quality. Reconnect recovery rebuilds both peers' `RTCPeerConnection` while reusing any still-live local media pipeline; the stable server-provided offerer role starts renegotiation.
+
 ## App icon
 
 The canonical mark is `apps/web/app/icon.svg`: a text-free 1:00 clock with the product palette and geometry that remains clear at 32×32. `scripts/generate-icons.py` generates the PNG, Apple icon and multi-size ICO derivatives from the same geometry. Navigation titles use the root template `%s · OneMinute`, with `OneMinute` alone on the home page.

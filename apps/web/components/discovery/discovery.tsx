@@ -45,42 +45,55 @@ export function Discovery({ api }: { api: string }) {
 
   useEffect(() => {
     let stopped = false, heartbeat: ReturnType<typeof setInterval> | undefined;
-    const cleanupCall = () => {
+    const cleanupPeer = () => {
       channel.current?.close(); channel.current = null; pc.current?.close(); pc.current = null; pendingIce.current = [];
+      if (remoteVideo.current) remoteVideo.current.srcObject = null;
+    };
+    const cleanupMedia = () => {
       if (processorTimer.current !== null) window.clearInterval(processorTimer.current); processorTimer.current = null;
       localStream.current?.getTracks().forEach(track => track.stop()); localStream.current = null;
       rawStream.current?.getTracks().forEach(track => track.stop()); rawStream.current = null;
       cameraSource.current?.pause(); cameraSource.current = null;
       if (localVideo.current) localVideo.current.srcObject = null;
-      if (remoteVideo.current) remoteVideo.current.srcObject = null;
     };
+    const cleanupCall = () => { cleanupPeer(); cleanupMedia(); };
     const attachChannel = (next: RTCDataChannel) => { channel.current = next; next.onmessage = event => setChat(items => [...items, `Them: ${String(event.data).slice(0, 500)}`]); };
-    const waitForConnection = async () => { for (let attempt = 0; attempt < 100; attempt++) { if (pc.current) return pc.current; await new Promise(resolve => setTimeout(resolve, 50)); } return null; };
+    const waitForConnection = async () => { for (let attempt = 0; attempt < 600; attempt++) { if (pc.current) return pc.current; await new Promise(resolve => setTimeout(resolve, 50)); } return null; };
     const applyPendingIce = async (connection: RTCPeerConnection) => { for (const candidate of pendingIce.current.splice(0)) { try { await connection.addIceCandidate(candidate); } catch {} } };
     const startCall = async (found: Match, ice: IceConfig) => {
-      cleanupCall();
+      cleanupPeer();
       try {
-        const raw = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
-        rawStream.current = raw;
-        const source = document.createElement("video"); source.muted = true; source.playsInline = true; source.srcObject = raw; cameraSource.current = source; await source.play();
-        const canvas = document.createElement("canvas"); canvas.width = 640; canvas.height = 480;
-        const context = canvas.getContext("2d", { alpha: false });
-        if (!context) throw new Error("video processing unavailable");
-        const draw = () => {
-          if (source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !source.videoWidth) return;
-          const width = Math.min(source.videoWidth, 960), height = Math.round(width * source.videoHeight / source.videoWidth);
-          if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
-          context.save();
-          if (mirrorRef.current) { context.translate(canvas.width, 0); context.scale(-1, 1); }
-          context.drawImage(source, 0, 0, canvas.width, canvas.height); context.restore();
-        };
-        draw(); processorTimer.current = window.setInterval(draw, 1000 / 30);
-        const processedVideo = canvas.captureStream(30).getVideoTracks()[0];
-        const stream = new MediaStream([...raw.getAudioTracks(), processedVideo]);
-        localStream.current = stream; if (localVideo.current) localVideo.current.srcObject = stream;
-        setDevices((await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput"));
+        if (!localStream.current || localStream.current.getTracks().some(track => track.readyState === "ended")) {
+          cleanupMedia();
+          const raw = await navigator.mediaDevices.getUserMedia({ audio: true, video: adaptiveVideoConstraints() });
+          rawStream.current = raw;
+          const source = document.createElement("video"); source.muted = true; source.playsInline = true; source.srcObject = raw; cameraSource.current = source; await source.play();
+          const canvas = document.createElement("canvas"); canvas.width = 1920; canvas.height = 1080;
+          const context = canvas.getContext("2d", { alpha: false });
+          if (!context) throw new Error("video processing unavailable");
+          const draw = () => {
+            if (source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !source.videoWidth) return;
+            if (canvas.width !== source.videoWidth || canvas.height !== source.videoHeight) { canvas.width = source.videoWidth; canvas.height = source.videoHeight; }
+            context.save();
+            if (mirrorRef.current) { context.translate(canvas.width, 0); context.scale(-1, 1); }
+            context.drawImage(source, 0, 0, canvas.width, canvas.height); context.restore();
+          };
+          draw(); processorTimer.current = window.setInterval(draw, 1000 / 30);
+          const processedVideo = canvas.captureStream(30).getVideoTracks()[0]; processedVideo.contentHint = "motion";
+          localStream.current = new MediaStream([...raw.getAudioTracks(), processedVideo]);
+          setDevices((await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput"));
+        }
+        const stream = localStream.current;
+        if (!stream) throw new Error("media unavailable");
+        if (localVideo.current) localVideo.current.srcObject = stream;
         const next = new RTCPeerConnection(ice); pc.current = next;
-        stream.getTracks().forEach(track => next.addTrack(track, stream));
+        for (const track of stream.getTracks()) {
+          const sender = next.addTrack(track, stream);
+          if (track.kind === "video") {
+            const parameters = sender.getParameters(); parameters.degradationPreference = "balanced";
+            await sender.setParameters(parameters);
+          }
+        }
         next.ontrack = event => { if (remoteVideo.current) remoteVideo.current.srcObject = event.streams[0]; };
         next.onicecandidate = event => { if (event.candidate && socket.current) send(socket.current, "webrtc.ice", event.candidate.toJSON(), found.id); };
         next.ondatachannel = event => attachChannel(event.channel);
@@ -108,7 +121,7 @@ export function Discovery({ api }: { api: string }) {
           else if (incoming.type === "match.extend_pending") setMessage("Your extension choice is private. Waiting for their choice.");
           else if (incoming.type === "match.extended") { setMatch(current => current ? { ...current, extended: true } : current); setMessage("You both chose to keep talking."); }
           else if (incoming.type === "peer.disconnected") setMessage("Their connection dropped. Their place is held for 45 seconds.");
-          else if (incoming.type === "peer.reconnected") setMessage("They reconnected.");
+          else if (incoming.type === "peer.reconnected") { setMessage("They reconnected. Restoring video…"); const current = matchRef.current; if (current) await startCall(current, ice); }
           else if (incoming.type === "match.ended") {
             cleanupCall(); matchRef.current = null; setMatch(null); setPhase("ready");
             if (requeue.current) { requeue.current = false; send(ws, "queue.join", preferencesRef.current); setMessage("Finding your next conversation…"); }
@@ -127,7 +140,7 @@ export function Discovery({ api }: { api: string }) {
   function matchAction(type: "match.leave" | "match.skip" | "match.extend") { if (!socket.current || !match) return; if (type === "match.skip") requeue.current = true; send(socket.current, type, {}, match.id); }
   function toggleInterest(value: string) { setSelected(current => current.includes(value) ? current.filter(item => item !== value) : current.length < 8 ? [...current, value] : current); }
   function sendChat(event: FormEvent) { event.preventDefault(); const text = draft.trim().slice(0, 500); if (!text || channel.current?.readyState !== "open") return; channel.current.send(text); setChat(items => [...items, `You: ${text}`]); setDraft(""); }
-  async function switchCamera(deviceId: string) { setCamera(deviceId); try { const nextStream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : true }); const source = cameraSource.current, current = rawStream.current; if (!source || !current) { nextStream.getTracks().forEach(track => track.stop()); return; } source.srcObject = nextStream; await source.play(); current.getVideoTracks().forEach(track => { track.stop(); current.removeTrack(track); }); current.addTrack(nextStream.getVideoTracks()[0]); } catch { setMessage("Could not switch cameras."); } }
+  async function switchCamera(deviceId: string) { setCamera(deviceId); try { const nextStream = await navigator.mediaDevices.getUserMedia({ video: { ...adaptiveVideoConstraints(), ...(deviceId ? { deviceId: { exact: deviceId } } : {}) } }); const source = cameraSource.current, current = rawStream.current; if (!source || !current) { nextStream.getTracks().forEach(track => track.stop()); return; } source.srcObject = nextStream; await source.play(); current.getVideoTracks().forEach(track => { track.stop(); current.removeTrack(track); }); current.addTrack(nextStream.getVideoTracks()[0]); } catch { setMessage("Could not switch cameras."); } }
 
   return <main className={match ? "encounter-shell" : "discover-shell"}>
     <header className="app-header"><Link className="wordmark" href="/">OneMinute</Link>{user && <span>Hi, {user.displayName}</span>}</header>
@@ -144,6 +157,8 @@ export function Discovery({ api }: { api: string }) {
 }
 
 function EncounterActions({ match, act }: { match: Match; act: (type: "match.leave" | "match.skip" | "match.extend") => void }) { return <><button className="quiet-button" onClick={() => act("match.skip")}>Next</button><button onClick={() => act("match.extend")} disabled={match.extended}>Extend</button><button className="danger-button" onClick={() => act("match.leave")}>Leave</button></>; }
+
+function adaptiveVideoConstraints(): MediaTrackConstraints { return { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 }, facingMode: "user" }; }
 
 function send(socket: WebSocket, type: string, payload: object, matchId?: string) { socket.send(JSON.stringify({ version: 1, type, requestId: crypto.randomUUID(), matchId, payload })); }
 function parse(value: unknown): Envelope { const parsed = JSON.parse(String(value)) as Envelope; if (parsed.version !== 1 || typeof parsed.type !== "string" || !parsed.payload) throw new Error("Invalid event"); return parsed; }
