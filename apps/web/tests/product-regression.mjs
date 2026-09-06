@@ -248,7 +248,7 @@ try {
     .poll(() =>
       a.locator("html").evaluate((el) => getComputedStyle(el).backgroundColor),
     )
-    .toBe("rgb(3, 16, 9)");
+    .toBe("rgb(1, 1, 1)");
   await a.screenshot({ path: "/artifacts/desktop-dark.png", fullPage: true });
   await a.emulateMedia({ colorScheme: "light" });
   await a.setViewportSize({ width: 393, height: 852 });
