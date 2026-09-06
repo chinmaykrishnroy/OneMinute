@@ -273,6 +273,14 @@ try {
     await a.goto(`${origin}/app/${route}`);
     const nav = a.locator(".product-nav");
     await expect(nav).toBeVisible();
+    await expect
+      .poll(() =>
+        a.evaluate(() => {
+          const element = document.querySelector("body > .product-nav");
+          return element ? getComputedStyle(element).position : "missing";
+        }),
+      )
+      .toBe("fixed");
     const before = await nav.boundingBox();
     expect(before).not.toBeNull();
     await a.mouse.move(200, 400);

@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon, IconName } from "./icon";
 import { useCommunication } from "@/components/communication/runtime";
 import { NotificationCenter } from "@/components/communication/notifications";
@@ -21,7 +22,10 @@ const tabs: { key: IconName; href: string; label: string }[] = [
 export function MobileNav({ current }: { current: Tab }) {
   const { notices } = useCommunication();
   const unread = notices.some((n) => !n.read);
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal((
     <nav className="product-nav" aria-label="Main navigation">
       <Link
         href="/app/discover"
@@ -55,7 +59,7 @@ export function MobileNav({ current }: { current: Tab }) {
         </Link>
       ))}
     </nav>
-  );
+  ), document.body);
 }
 export function AppHeader({
   title,
