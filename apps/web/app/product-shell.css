@@ -206,7 +206,51 @@ html {
   background: transparent;
 }
 .message-composer {
+  display: flex;
+  align-items: center;
   padding-bottom: 4px;
+}
+.message-draft-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.message-overflow-cue {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  left: 12px;
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+.message-composer textarea {
+  width: 100%;
+  min-height: 48px;
+  height: 48px;
+  max-height: 152px;
+  resize: none;
+  overflow-y: hidden;
+  line-height: 24px;
+  padding: 11px 14px;
+  border-width: 1px;
+}
+.message-draft-wrap.is-overflowing textarea {
+  padding-left: 32px;
+}
+.message-composer textarea:focus-visible {
+  outline-offset: 0;
+}
+.message-composer > button {
+  flex: 0 0 auto;
+  height: 48px;
+  min-height: 48px;
+  margin: 0;
+  align-self: center;
 }
 .profile-overview {
   border: 0;

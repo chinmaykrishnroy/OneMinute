@@ -1,7 +1,14 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  FormEvent,
+} from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AppHeader, MobileNav } from "@/components/navigation/mobile-nav";
 import { Icon } from "@/components/navigation/icon";
@@ -40,6 +47,7 @@ function ConversationInbox({ selected }: { selected: string }) {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
+  const [draftOverflow, setDraftOverflow] = useState(false);
   const [status, setStatus] = useState("Loading connections...");
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -55,7 +63,31 @@ function ConversationInbox({ selected }: { selected: string }) {
     undefined,
   );
   const bottom = useRef<HTMLDivElement>(null);
+  const draftElement = useRef<HTMLTextAreaElement>(null);
   const person = connections.find((c) => c.id === selected)?.person;
+  const resizeDraft = useCallback(() => {
+    const element = draftElement.current;
+    if (!element) return;
+    element.style.height = "auto";
+    const styles = window.getComputedStyle(element);
+    const lineHeight = Number.parseFloat(styles.lineHeight) || 24;
+    const padding =
+      Number.parseFloat(styles.paddingTop) +
+      Number.parseFloat(styles.paddingBottom);
+    const borders =
+      Number.parseFloat(styles.borderTopWidth) +
+      Number.parseFloat(styles.borderBottomWidth);
+    const maxHeight = lineHeight * 5 + padding + borders;
+    const overflowing = element.scrollHeight > maxHeight + 1;
+    element.style.height = `${Math.min(element.scrollHeight, maxHeight)}px`;
+    element.style.overflowY = overflowing ? "auto" : "hidden";
+    setDraftOverflow((current) =>
+      current === overflowing ? current : overflowing,
+    );
+  }, []);
+  useLayoutEffect(() => {
+    resizeDraft();
+  }, [draft, resizeDraft]);
   useEffect(() => {
     let stopped = false;
     async function load() {
@@ -334,36 +366,47 @@ function ConversationInbox({ selected }: { selected: string }) {
                 <label className="sr-only" htmlFor="message-draft">
                   Message
                 </label>
-                <textarea
-                  id="message-draft"
-                  rows={2}
-                  maxLength={4000}
-                  value={draft}
-                  placeholder="Write a message..."
-                  onChange={(e) => {
-                    setDraft(e.target.value);
-                    if (
-                      settings.typing &&
-                      Date.now() - lastTyping.current > 2000
-                    ) {
-                      lastTyping.current = Date.now();
-                      void fetch(
-                        new URL(`/v1/connections/${selected}/typing`, api),
-                        { method: "POST", credentials: "include" },
-                      );
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      !e.shiftKey &&
-                      !e.nativeEvent.isComposing
-                    ) {
-                      e.preventDefault();
-                      e.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                />
+                <div
+                  className={`message-draft-wrap${draftOverflow ? " is-overflowing" : ""}`}
+                >
+                  {draftOverflow && (
+                    <span className="message-overflow-cue" aria-hidden="true">
+                      …
+                    </span>
+                  )}
+                  <textarea
+                    ref={draftElement}
+                    id="message-draft"
+                    rows={1}
+                    maxLength={4000}
+                    value={draft}
+                    placeholder="Write a message..."
+                    onChange={(e) => {
+                      setDraft(e.target.value);
+
+                      if (
+                        settings.typing &&
+                        Date.now() - lastTyping.current > 2000
+                      ) {
+                        lastTyping.current = Date.now();
+                        void fetch(
+                          new URL(`/v1/connections/${selected}/typing`, api),
+                          { method: "POST", credentials: "include" },
+                        );
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        !e.shiftKey &&
+                        !e.nativeEvent.isComposing
+                      ) {
+                        e.preventDefault();
+                        e.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                  />
+                </div>
                 <button disabled={sending || !draft.trim()}>
                   {sending ? "Sending..." : "Send"}
                 </button>

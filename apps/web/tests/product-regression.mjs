@@ -230,6 +230,11 @@ try {
       await expect(
         a.getByRole("button", { name: "Go back", exact: true }),
       ).toBeVisible();
+      if (route === "discover") {
+        await expect(
+          a.getByRole("button", { name: /Notifications/ }),
+        ).toBeVisible();
+      }
       await a.screenshot({
         path: `/artifacts/${label}-${route}.png`,
         fullPage: true,
@@ -266,6 +271,17 @@ try {
   await a.goto(`${origin}/app/messages`);
   await a.getByRole("button", { name: /Sam Rivers/ }).click();
   await expect(a.locator(".header-heading h1")).toHaveText("Sam Rivers");
+  const draft = a.locator("#message-draft");
+  const send = a.getByRole("button", { name: "Send", exact: true });
+  await draft.fill("One line");
+  await expect
+    .poll(() => draft.evaluate((element) => Math.round(element.getBoundingClientRect().height)))
+    .toBe(await send.evaluate((element) => Math.round(element.getBoundingClientRect().height)));
+  await draft.fill(Array.from({ length: 8 }, (_, index) => `line ${index + 1}`).join("\n"));
+  await expect(a.locator(".message-overflow-cue")).toBeVisible();
+  await expect
+    .poll(() => draft.evaluate((element) => element.getBoundingClientRect().height))
+    .toBeLessThan(170);
   await a.getByRole("button", { name: "Go back", exact: true }).click();
   await expect(a.locator(".header-heading h1")).toHaveText("Messages");
   await a.getByRole("button", { name: /Sam Rivers/ }).click();

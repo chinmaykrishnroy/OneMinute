@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
 import { Icon, IconName } from "./icon";
 import { useCommunication } from "@/components/communication/runtime";
+import { NotificationCenter } from "@/components/communication/notifications";
 export type Tab =
   | "discover"
   | "messages"
@@ -68,13 +69,7 @@ export function AppHeader({
   const router = useRouter();
   const defaultAction =
     title === "Discover" ? (
-      <Link
-        className="header-action"
-        href="/app/profile#preferences"
-        aria-label="Discovery preferences"
-      >
-        <Icon name="settings" />
-      </Link>
+      <NotificationCenter />
     ) : title === "Messages" ? (
       <Link
         className="header-action"
