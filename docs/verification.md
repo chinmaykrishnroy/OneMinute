@@ -116,3 +116,18 @@ Remote verification passed: full Go race suite and vet; 20-way atomic claim cont
 The public authentication boundary redirected an unsigned `/app/discover` request back to the Google sign-in page without browser console errors. The owner’s authenticated screenshot exposed an interest-chip overflow issue; the deployed fix uses a shrinking fieldset and responsive 130-pixel-minimum grid so options wrap within the card on desktop, tablet and mobile.
 
 Not yet claimed: a real two-account browser matchmaking session. The real integration suite exercises the same authenticated handlers, PostgreSQL/Redis state and cross-instance WebSocket flow with controlled test identities. Camera/video, the authoritative 60-second timer, Extend and complete reconnect grace are Milestone 4 work.
+
+## Milestone 4 encounter (2026-09-06)
+
+Implemented and deployed on `oneminute`:
+
+- Redis owns the 60-second encounter deadline and emits terminal events from atomic Lua transitions. The UI renders the server timestamps; it does not decide when a match expires.
+- Extend is a private per-user vote. One vote receives a private pending acknowledgment; only two votes atomically remove the deadline and notify both participants. A deadline comparison inside the same script prevents a late extension from reviving an expired encounter.
+- Next atomically ends the current match and rejoins with the same session preferences after cleanup. Leave ends without requeueing. Recent-pair suppression remains active.
+- A disconnected participant has a server-enforced 45-second reservation. Reconnect revalidates the session, live connection, match membership, and grace deadline. A shared sweeper safely handles encounter and disconnect deadlines across instances.
+- The protected encounter screen creates the browser-to-browser media connection with authenticated ICE credentials and existing cross-instance signaling. Temporary chat uses an ordered RTCDataChannel and is not sent to or stored by the application server.
+- The screen uses equal square video tiles on wide displays, stacked remote/local video on phones, a portrait-tablet stack, and a compact landscape layout. The local camera panel supports preview-only mirroring and live input-device replacement. Advanced processed-track effects remain future work.
+
+Remote verification passed: the full Go race and vet suite; PostgreSQL/Redis integration; authoritative timestamps; private then mutual extension; skip cleanup; reconnect recovery and post-grace rejection; forged-match rejection; cross-instance signaling; concurrent expiry/extension behavior; TURN UDP/TCP; Pion normal and forced-relay media/DataChannels; and frontend typecheck, lint, and production build. The deployment rebuilt successfully with the remote/public Compose overlays. PostgreSQL, Redis, Go, Next.js, Pion TURN and Caddy are healthy; local readiness and both local and public gateway health endpoints pass.
+
+Still requires manual acceptance with two real authenticated accounts and physical cameras: permission prompts, visible/audible device media, the exact responsive layout on representative phone/tablet/desktop hardware, a full natural expiry, mutual Extend, Next requeue, a network-drop reconnect within 45 seconds, and direct browser DataChannel chat. Automated WebRTC media/TURN coverage uses the existing lab and Pion tests.

@@ -34,6 +34,19 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/discovery/ws", h.socket)
 }
 
+func (h *Handler) Run(ctx context.Context) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			_ = h.Store.Sweep(ctx, now)
+		}
+	}
+}
+
 func (h *Handler) socket(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Origin") != h.Origin {
 		http.Error(w, "origin not allowed", http.StatusForbidden)
@@ -73,8 +86,8 @@ func (h *Handler) socket(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if ok {
 		profile, err := h.Repo.Profile(ctx, peer(current, user.ID))
-		reconnected, reconnectErr := h.Store.Reconnect(ctx, user.ID, connectionID, current.ID)
-		if err != nil || reconnectErr != nil || !reconnected || write(ctx, conn, event("match.found", current.ID, map[string]any{"peer": profile, "sharedInterests": current.SharedInterests, "intent": current.Intent, "offerer": current.UserA == user.ID, "recovered": true})) != nil {
+		reconnected, reconnectErr := h.Store.Reconnect(ctx, user.ID, connectionID, current.ID, h.now())
+		if err != nil || reconnectErr != nil || !reconnected || write(ctx, conn, event("match.found", current.ID, map[string]any{"peer": profile, "sharedInterests": current.SharedInterests, "intent": current.Intent, "offerer": current.UserA == user.ID, "recovered": true, "state": current.State, "startedAt": current.StartedAt, "expiresAt": current.ExpiresAt})) != nil {
 			return
 		}
 	}
@@ -130,6 +143,27 @@ func (h *Handler) socket(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			_, _ = h.Store.EndMatch(ctx, user.ID, connectionID, envelope.MatchID, "left")
+		case "match.skip":
+			if envelope.MatchID == "" {
+				return
+			}
+			_, _ = h.Store.EndMatch(ctx, user.ID, connectionID, envelope.MatchID, "skipped")
+		case "match.extend":
+			if envelope.MatchID == "" {
+				return
+			}
+			result, err := h.Store.Extend(ctx, user.ID, connectionID, envelope.MatchID, h.now())
+			if err != nil || result <= 0 {
+				code := "match_unavailable"
+				if err != nil {
+					code = "lifecycle_error"
+				}
+				_ = write(ctx, conn, event("error", envelope.MatchID, map[string]string{"code": code}))
+				continue
+			}
+			if result == 1 {
+				_ = write(ctx, conn, event("match.extend_pending", envelope.MatchID, struct{}{}))
+			}
 		}
 	}
 }
@@ -185,9 +219,12 @@ func (h *Handler) tryMatch(ctx context.Context, user auth.User, connectionID str
 		}
 		shared := sharedInterests(preferences.Interests, candidate.Preferences.Interests)
 		matchID := randomID()
-		eventForUser, _ := json.Marshal(event("match.found", matchID, map[string]any{"peer": candidateProfile, "sharedInterests": shared, "intent": resolvedIntent(preferences.Intent, candidate.Preferences.Intent), "offerer": true}))
-		eventForCandidate, _ := json.Marshal(event("match.found", matchID, map[string]any{"peer": Profile{ID: user.ID, DisplayName: user.DisplayName, AvatarURL: user.AvatarURL}, "sharedInterests": shared, "intent": resolvedIntent(preferences.Intent, candidate.Preferences.Intent), "offerer": false}))
-		claimed, err := h.Store.Claim(ctx, user.ID, candidate.ID, connectionID, candidate.ConnectionID, matchID, resolvedIntent(preferences.Intent, candidate.Preferences.Intent), shared, eventForUser, eventForCandidate, h.now())
+		startedAt := h.now().UTC()
+		expiresAt := startedAt.Add(encounterLength)
+		lifecycle := map[string]any{"startedAt": startedAt.UnixMilli(), "expiresAt": expiresAt.UnixMilli(), "state": "active"}
+		eventForUser, _ := json.Marshal(event("match.found", matchID, merge(lifecycle, map[string]any{"peer": candidateProfile, "sharedInterests": shared, "intent": resolvedIntent(preferences.Intent, candidate.Preferences.Intent), "offerer": true})))
+		eventForCandidate, _ := json.Marshal(event("match.found", matchID, merge(lifecycle, map[string]any{"peer": Profile{ID: user.ID, DisplayName: user.DisplayName, AvatarURL: user.AvatarURL}, "sharedInterests": shared, "intent": resolvedIntent(preferences.Intent, candidate.Preferences.Intent), "offerer": false})))
+		claimed, err := h.Store.Claim(ctx, user.ID, candidate.ID, connectionID, candidate.ConnectionID, matchID, resolvedIntent(preferences.Intent, candidate.Preferences.Intent), shared, eventForUser, eventForCandidate, startedAt)
 		if err != nil {
 			return err
 		}
@@ -196,6 +233,17 @@ func (h *Handler) tryMatch(ctx context.Context, user auth.User, connectionID str
 		}
 	}
 	return nil
+}
+
+func merge(first, second map[string]any) map[string]any {
+	result := make(map[string]any, len(first)+len(second))
+	for key, value := range first {
+		result[key] = value
+	}
+	for key, value := range second {
+		result[key] = value
+	}
+	return result
 }
 
 func resolvedIntent(first, second string) string {

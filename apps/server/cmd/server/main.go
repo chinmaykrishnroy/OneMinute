@@ -63,6 +63,7 @@ func run(ctx context.Context, log *slog.Logger) error {
 	host := os.Getenv("TURN_HOST")
 	iceProvider := ice.SharedSecretProvider{Secret: os.Getenv("TURN_SECRET"), URLs: []string{"stun:" + host, "turn:" + host + "?transport=udp", "turn:" + host + "?transport=tcp"}, TTL: 10 * time.Minute}
 	discoveryHandler := &discovery.Handler{Root: ctx, Store: discovery.Store{Redis: cache}, Repo: discovery.Repository{DB: pool}, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin, ICE: iceProvider}
+	go discoveryHandler.Run(ctx)
 	var register = []func(*http.ServeMux){authHandler.Register, discoveryHandler.Register}
 	if cfg.LabEnabled {
 		lab := &signaling.Lab{Root: ctx, Redis: cache, Origin: cfg.WebOrigin, ICE: iceProvider}

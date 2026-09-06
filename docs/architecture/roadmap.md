@@ -22,11 +22,13 @@ Google ID-token verification, stable provider identity, secure hashed applicatio
 
 Authenticated presence and sockets; queue membership; current session intent; language and session-scoped structured-interest compatibility; minimal durable block enforcement; recent-pair filtering; candidate selection; atomic two-user Redis claims; user-to-match mappings; finite match state; cross-instance routing; safe disconnect behavior. Match data must accommodate later lifecycle and private votes without implementing them now. Milestone 5 adds the user-facing block workflow and durable profile interests.
 
-## Planned product slices
+## Completed encounter
 
 ### Milestone 4 — Encounter
 
 Authoritative 60-second lifecycle, server timestamps, responsive square-video encounter layout, local preview mirror/device settings, Next/Skip, private mutual Extend, RTCDataChannel temporary chat, 30–60 second reconnect grace, cleanup/requeue and atomic expiry/extension handling. Advanced camera effects remain an optional later enhancement behind a processed-track boundary.
+
+## Planned product slices
 
 ### Milestone 5 — Social graph
 

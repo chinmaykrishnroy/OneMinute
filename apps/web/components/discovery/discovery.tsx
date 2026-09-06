@@ -1,129 +1,129 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 type User = { id: string; displayName: string; avatarUrl: string };
 type Peer = { id: string; displayName: string; avatarUrl: string };
-type Match = { id: string; peer: Peer; sharedInterests: string[]; intent?: string; recovered?: boolean };
+type IceConfig = { iceServers: RTCIceServer[] };
+type Match = { id: string; peer: Peer; sharedInterests: string[]; intent?: string; offerer: boolean; expiresAt: number; extended: boolean };
 type Phase = "connecting" | "ready" | "queued" | "matched" | "offline";
 type Envelope = { version: 1; type: string; matchId?: string; payload: Record<string, unknown> };
 
-const intents = [
-  ["surprise_me", "Surprise me"], ["new_friends", "New friends"], ["dating", "Dating"],
-  ["gaming", "Gaming"], ["language_exchange", "Language exchange"], ["tech_ideas", "Tech / ideas"],
-  ["professional_networking", "Professional networking"],
-] as const;
+const intents = [["surprise_me", "Surprise me"], ["new_friends", "New friends"], ["dating", "Dating"], ["gaming", "Gaming"], ["language_exchange", "Language exchange"], ["tech_ideas", "Tech / ideas"], ["professional_networking", "Professional networking"]] as const;
 const languages = [["en", "English"], ["hi", "Hindi"], ["bn", "Bengali"], ["es", "Spanish"], ["fr", "French"], ["de", "German"], ["ja", "Japanese"]] as const;
 const interests = ["ai", "art", "books", "films", "fitness", "gaming", "music", "nature", "photography", "science", "technology", "travel"];
 
 export function Discovery({ api }: { api: string }) {
   const router = useRouter();
-  const socket = useRef<WebSocket | null>(null);
-  const [phase, setPhase] = useState<Phase>("connecting");
-  const [user, setUser] = useState<User | null>(null);
-  const [match, setMatch] = useState<Match | null>(null);
-  const [intent, setIntent] = useState("surprise_me");
-  const [language, setLanguage] = useState("en");
-  const [selected, setSelected] = useState<string[]>(["music", "technology"]);
-  const [message, setMessage] = useState("Checking your session…");
+  const socket = useRef<WebSocket | null>(null), pc = useRef<RTCPeerConnection | null>(null);
+  const localStream = useRef<MediaStream | null>(null), channel = useRef<RTCDataChannel | null>(null);
+  const localVideo = useRef<HTMLVideoElement | null>(null), remoteVideo = useRef<HTMLVideoElement | null>(null);
+  const matchRef = useRef<Match | null>(null), requeue = useRef(false);
+  const pendingIce = useRef<RTCIceCandidateInit[]>([]);
+  const preferencesRef = useRef({ intent: "surprise_me", languages: ["en"], interests: ["music", "technology"] });
+  const [phase, setPhase] = useState<Phase>("connecting"), [user, setUser] = useState<User | null>(null);
+  const [match, setMatch] = useState<Match | null>(null), [message, setMessage] = useState("Checking your session…");
+  const [intent, setIntent] = useState("surprise_me"), [language, setLanguage] = useState("en");
+  const [selected, setSelected] = useState<string[]>(["music", "technology"]), [seconds, setSeconds] = useState(60);
+  const [mirror, setMirror] = useState(true), [settingsOpen, setSettingsOpen] = useState(false);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]), [camera, setCamera] = useState("");
+  const [chat, setChat] = useState<string[]>([]), [draft, setDraft] = useState("");
+
+  useEffect(() => { preferencesRef.current = { intent, languages: [language], interests: selected }; }, [intent, language, selected]);
+  useEffect(() => { matchRef.current = match; }, [match]);
+  useEffect(() => { if (match && localVideo.current && localStream.current) localVideo.current.srcObject = localStream.current; }, [match]);
+  useEffect(() => {
+    if (!match || match.extended) return;
+    const update = () => setSeconds(Math.max(0, Math.ceil((match.expiresAt - Date.now()) / 1000)));
+    update(); const timer = setInterval(update, 250); return () => clearInterval(timer);
+  }, [match]);
 
   useEffect(() => {
-    let stopped = false;
-    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    let stopped = false, heartbeat: ReturnType<typeof setInterval> | undefined;
+    const cleanupCall = () => {
+      channel.current?.close(); channel.current = null; pc.current?.close(); pc.current = null; pendingIce.current = [];
+      localStream.current?.getTracks().forEach(track => track.stop()); localStream.current = null;
+      if (localVideo.current) localVideo.current.srcObject = null;
+      if (remoteVideo.current) remoteVideo.current.srcObject = null;
+    };
+    const attachChannel = (next: RTCDataChannel) => { channel.current = next; next.onmessage = event => setChat(items => [...items, `Them: ${String(event.data).slice(0, 500)}`]); };
+    const waitForConnection = async () => { for (let attempt = 0; attempt < 100; attempt++) { if (pc.current) return pc.current; await new Promise(resolve => setTimeout(resolve, 50)); } return null; };
+    const applyPendingIce = async (connection: RTCPeerConnection) => { for (const candidate of pendingIce.current.splice(0)) { try { await connection.addIceCandidate(candidate); } catch {} } };
+    const startCall = async (found: Match, ice: IceConfig) => {
+      cleanupCall();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
+        localStream.current = stream; if (localVideo.current) localVideo.current.srcObject = stream;
+        setDevices((await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput"));
+        const next = new RTCPeerConnection(ice); pc.current = next;
+        stream.getTracks().forEach(track => next.addTrack(track, stream));
+        next.ontrack = event => { if (remoteVideo.current) remoteVideo.current.srcObject = event.streams[0]; };
+        next.onicecandidate = event => { if (event.candidate && socket.current) send(socket.current, "webrtc.ice", event.candidate.toJSON(), found.id); };
+        next.ondatachannel = event => attachChannel(event.channel);
+        if (found.offerer) { attachChannel(next.createDataChannel("chat", { ordered: true })); const offer = await next.createOffer(); await next.setLocalDescription(offer); if (socket.current) send(socket.current, "webrtc.offer", offer, found.id); }
+      } catch { setMessage("Camera and microphone access is needed for the encounter."); }
+    };
     async function connect() {
       try {
         const me = await fetch(new URL("/v1/auth/me", api), { credentials: "include" });
-        if (!me.ok) { router.replace("/"); return; }
-        if (stopped) return;
-        setUser(await me.json());
-        const url = new URL("/v1/discovery/ws", api);
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-        const ws = new WebSocket(url);
-        socket.current = ws;
-        ws.onmessage = event => {
-          let incoming: Envelope;
-          try { incoming = parse(event.data); }
-          catch { ws.close(1002, "invalid server event"); return; }
-          if (incoming.type === "connection.ready") { setPhase("ready"); setMessage("Choose what you feel like talking about today."); }
+        if (!me.ok) { router.replace("/"); return; } if (stopped) return; setUser(await me.json());
+        const url = new URL("/v1/discovery/ws", api); url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(url); socket.current = ws; let ice: IceConfig = { iceServers: [] };
+        ws.onmessage = async event => {
+          let incoming: Envelope; try { incoming = parse(event.data); } catch { ws.close(1002, "invalid server event"); return; }
+          if (incoming.type === "connection.ready") { ice = incoming.payload.ice as IceConfig; setPhase("ready"); setMessage("Choose what you feel like talking about today."); }
           else if (incoming.type === "queue.joined") { setPhase("queued"); setMessage("Looking for someone compatible…"); }
           else if (incoming.type === "queue.left") { setPhase("ready"); setMessage("You left the queue."); }
           else if (incoming.type === "match.found" && incoming.matchId) {
-            const peer = incoming.payload.peer as Peer;
-            setMatch({ id: incoming.matchId, peer, sharedInterests: (incoming.payload.sharedInterests as string[] | undefined) ?? [], intent: incoming.payload.intent as string | undefined, recovered: Boolean(incoming.payload.recovered) });
-            setPhase("matched"); setMessage("");
-          } else if (incoming.type === "peer.disconnected") setMessage("Your match lost connection. Their place is being kept briefly.");
-          else if (incoming.type === "peer.reconnected") setMessage("Your match reconnected.");
-          else if (incoming.type === "match.ended") { setMatch(null); setPhase("ready"); setMessage("That encounter ended. You can discover again."); }
-          else if (incoming.type === "error") setMessage(errorMessage(incoming.payload.code));
+            const found: Match = { id: incoming.matchId, peer: incoming.payload.peer as Peer, sharedInterests: (incoming.payload.sharedInterests as string[] | undefined) ?? [], intent: incoming.payload.intent as string | undefined, offerer: Boolean(incoming.payload.offerer), expiresAt: Number(incoming.payload.expiresAt), extended: incoming.payload.state === "extended" };
+            matchRef.current = found; setMatch(found); setPhase("matched"); setMessage(""); setChat([]); await startCall(found, ice);
+          } else if (incoming.type === "webrtc.offer" && incoming.matchId === matchRef.current?.id) {
+            const connection = await waitForConnection(); if (!connection) return; await connection.setRemoteDescription(incoming.payload as unknown as RTCSessionDescriptionInit); await applyPendingIce(connection); const answer = await connection.createAnswer(); await connection.setLocalDescription(answer); send(ws, "webrtc.answer", answer, incoming.matchId);
+          } else if (incoming.type === "webrtc.answer" && incoming.matchId === matchRef.current?.id) { const connection = await waitForConnection(); if (connection) { await connection.setRemoteDescription(incoming.payload as unknown as RTCSessionDescriptionInit); await applyPendingIce(connection); } }
+          else if (incoming.type === "webrtc.ice" && incoming.matchId === matchRef.current?.id) { const candidate = incoming.payload as RTCIceCandidateInit, connection = pc.current; if (!connection?.remoteDescription) pendingIce.current.push(candidate); else try { await connection.addIceCandidate(candidate); } catch {} }
+          else if (incoming.type === "match.extend_pending") setMessage("Your extension choice is private. Waiting for their choice.");
+          else if (incoming.type === "match.extended") { setMatch(current => current ? { ...current, extended: true } : current); setMessage("You both chose to keep talking."); }
+          else if (incoming.type === "peer.disconnected") setMessage("Their connection dropped. Their place is held for 45 seconds.");
+          else if (incoming.type === "peer.reconnected") setMessage("They reconnected.");
+          else if (incoming.type === "match.ended") {
+            cleanupCall(); matchRef.current = null; setMatch(null); setPhase("ready");
+            if (requeue.current) { requeue.current = false; send(ws, "queue.join", preferencesRef.current); setMessage("Finding your next conversation…"); }
+            else setMessage(incoming.payload.reason === "expired" ? "That minute ended. Discover again when you are ready." : "That encounter ended. You can discover again.");
+          } else if (incoming.type === "error") setMessage(errorMessage(incoming.payload.code));
         };
         ws.onopen = () => { heartbeat = setInterval(() => send(ws, "presence.heartbeat", {}), 20_000); };
-        ws.onclose = () => { if (!stopped) { setPhase("offline"); setMessage("Discovery disconnected. Refresh to reconnect safely."); } };
+        ws.onclose = () => { if (!stopped) { cleanupCall(); setPhase("offline"); setMessage("Discovery disconnected. Refresh to reconnect safely."); } };
         ws.onerror = () => setMessage("Could not reach discovery. Please try again.");
       } catch { if (!stopped) { setPhase("offline"); setMessage("Could not reach OneMinute. Please refresh."); } }
     }
-    void connect();
-    return () => { stopped = true; if (heartbeat) clearInterval(heartbeat); socket.current?.close(1000, "page closed"); };
+    void connect(); return () => { stopped = true; if (heartbeat) clearInterval(heartbeat); cleanupCall(); socket.current?.close(1000, "page closed"); };
   }, [api, router]);
 
-  function join(event: FormEvent) {
-    event.preventDefault();
-    if (!socket.current || socket.current.readyState !== WebSocket.OPEN) return;
-    send(socket.current, "queue.join", { intent, languages: [language], interests: selected });
-    setMessage("Joining discovery…");
-  }
+  function join(event?: FormEvent) { event?.preventDefault(); if (socket.current?.readyState === WebSocket.OPEN) { send(socket.current, "queue.join", preferencesRef.current); setMessage("Joining discovery…"); } }
+  function matchAction(type: "match.leave" | "match.skip" | "match.extend") { if (!socket.current || !match) return; if (type === "match.skip") requeue.current = true; send(socket.current, type, {}, match.id); }
+  function toggleInterest(value: string) { setSelected(current => current.includes(value) ? current.filter(item => item !== value) : current.length < 8 ? [...current, value] : current); }
+  function sendChat(event: FormEvent) { event.preventDefault(); const text = draft.trim().slice(0, 500); if (!text || channel.current?.readyState !== "open") return; channel.current.send(text); setChat(items => [...items, `You: ${text}`]); setDraft(""); }
+  async function switchCamera(deviceId: string) { setCamera(deviceId); try { const stream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : true }); const next = stream.getVideoTracks()[0], sender = pc.current?.getSenders().find(item => item.track?.kind === "video"); await sender?.replaceTrack(next); localStream.current?.getVideoTracks().forEach(track => track.stop()); if (localStream.current) { localStream.current.getVideoTracks().forEach(track => localStream.current?.removeTrack(track)); localStream.current.addTrack(next); } if (localVideo.current) localVideo.current.srcObject = localStream.current; } catch { setMessage("Could not switch cameras."); } }
 
-  function leaveQueue() {
-    if (socket.current) send(socket.current, "queue.leave", {});
-  }
-
-  function leaveMatch() {
-    if (socket.current && match) send(socket.current, "match.leave", {}, match.id);
-  }
-
-  function toggleInterest(value: string) {
-    setSelected(current => current.includes(value) ? current.filter(item => item !== value) : current.length < 8 ? [...current, value] : current);
-  }
-
-  return <main className="discover-shell">
+  return <main className={match ? "encounter-shell" : "discover-shell"}>
     <header className="app-header"><Link className="wordmark" href="/">OneMinute</Link>{user && <span>Hi, {user.displayName}</span>}</header>
-    {match ? <section className="match-card" aria-live="polite">
-      <p className="eyebrow">You found each other</p>
-      <div className="peer-heading">
-        {match.peer.avatarUrl ? <Image src={match.peer.avatarUrl} alt="" width={72} height={72} unoptimized /> : <span className="avatar-fallback">{match.peer.displayName.slice(0, 1)}</span>}
-        <div><h1>{match.peer.displayName}</h1><p>{match.recovered ? "Encounter recovered" : "Start with the person, not a profile."}</p></div>
-      </div>
-      {match.sharedInterests.length > 0 && <div className="shared-context"><strong>You both like</strong><div className="chips">{match.sharedInterests.map(item => <span key={item}>{label(item)}</span>)}</div></div>}
-      <p className="intent-note">Current intent: {label(match.intent ?? intent)}</p>
-      <p className="phase-note">Calling is not enabled in this discovery preview yet. You can leave and meet someone else.</p>
-      <button className="danger-button" onClick={leaveMatch}>Leave match</button>
-    </section> : <section className="discovery-card">
-      <p className="eyebrow">Discover</p><h1>Who would you like to meet?</h1>
-      <p>Your choice applies to this session. Dating only matches with another person who chose Dating.</p>
-      <form className="preference-form" onSubmit={join}>
-        <label>Current intent<select value={intent} onChange={event => setIntent(event.target.value)} disabled={phase === "queued"}>{intents.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label>
-        <label>Conversation language<select value={language} onChange={event => setLanguage(event.target.value)} disabled={phase === "queued"}>{languages.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label>
-        <fieldset disabled={phase === "queued"}><legend>A few things you enjoy</legend><div className="interest-grid">{interests.map(item => <label className="interest" key={item}><input type="checkbox" checked={selected.includes(item)} onChange={() => toggleInterest(item)} />{label(item)}</label>)}</div></fieldset>
-        {phase === "queued" ? <button type="button" className="quiet-button" onClick={leaveQueue}>Leave queue</button> : <button type="submit" disabled={phase !== "ready"}>Start discovering</button>}
-      </form>
-      <p role="status" className="auth-status">{message}</p>
-    </section>}
+    {match ? <section className="encounter" aria-live="polite">
+      <div className="encounter-top"><div><p className="eyebrow">Live encounter</p><strong>{match.peer.displayName}</strong></div><output className={match.extended ? "timer extended" : "timer"}>{match.extended ? "Extended" : `0:${String(seconds).padStart(2, "0")}`}</output></div>
+      <div className="video-stage"><figure className="video-tile remote-tile"><video ref={remoteVideo} autoPlay playsInline /><figcaption>{match.peer.displayName}</figcaption></figure><figure className="video-tile local-tile"><video ref={localVideo} autoPlay muted playsInline className={mirror ? "mirrored" : ""} /><figcaption>You</figcaption><button className="camera-settings" onClick={() => setSettingsOpen(true)} aria-label="Camera settings">⚙</button><div className="local-overlay-actions"><EncounterActions match={match} act={matchAction} /></div></figure></div>
+      <div className="encounter-actions desktop-actions"><EncounterActions match={match} act={matchAction} /></div>
+      <p role="status" className="encounter-status">{message || (match.sharedInterests.length ? `You both like ${match.sharedInterests.map(label).join(", ")}.` : "Start with hello.")}</p>
+      <form className="temp-chat" onSubmit={sendChat}><div className="chat-log" aria-live="polite">{chat.length ? chat.map((item, index) => <p key={index}>{item}</p>) : <p>Messages stay between your browsers and disappear after this encounter.</p>}</div><label><span className="sr-only">Temporary message</span><input value={draft} onChange={event => setDraft(event.target.value)} maxLength={500} placeholder="Say something…" /></label><button>Send</button></form>
+      {settingsOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSettingsOpen(false)}><div className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="camera-title" onMouseDown={event => event.stopPropagation()}><div className="settings-heading"><h2 id="camera-title">Camera</h2><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button></div><label className="check"><input type="checkbox" checked={mirror} onChange={event => setMirror(event.target.checked)} /> Mirror my preview</label><label>Camera<select value={camera} onChange={event => void switchCamera(event.target.value)}><option value="">Default camera</option>{devices.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || "Camera"}</option>)}</select></label><p>Mirror changes only what you see. Effects and filters will arrive through the same camera panel.</p></div></div>}
+      <nav className="mobile-tabs" aria-label="App"><Link href="/">Home</Link><Link href="/app/discover" aria-current="page">Discover</Link></nav>
+    </section> : <section className="discovery-card"><p className="eyebrow">Discover</p><h1>Who would you like to meet?</h1><p>Your choice applies to this session. Dating only matches with another person who chose Dating.</p><form className="preference-form" onSubmit={join}><label>Current intent<select value={intent} onChange={event => setIntent(event.target.value)} disabled={phase === "queued"}>{intents.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label><label>Conversation language<select value={language} onChange={event => setLanguage(event.target.value)} disabled={phase === "queued"}>{languages.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label><fieldset disabled={phase === "queued"}><legend>A few things you enjoy</legend><div className="interest-grid">{interests.map(item => <label className="interest" key={item}><input type="checkbox" checked={selected.includes(item)} onChange={() => toggleInterest(item)} />{label(item)}</label>)}</div></fieldset>{phase === "queued" ? <button type="button" className="quiet-button" onClick={() => socket.current && send(socket.current, "queue.leave", {})}>Leave queue</button> : <button type="submit" disabled={phase !== "ready"}>Start discovering</button>}</form><p role="status" className="auth-status">{message}</p></section>}
   </main>;
 }
 
-function send(socket: WebSocket, type: string, payload: object, matchId?: string) {
-  socket.send(JSON.stringify({ version: 1, type, requestId: crypto.randomUUID(), matchId, payload }));
-}
-function parse(value: unknown): Envelope {
-  const parsed = JSON.parse(String(value)) as Envelope;
-  if (parsed.version !== 1 || typeof parsed.type !== "string" || !parsed.payload) throw new Error("Invalid event");
-  return parsed;
-}
+function EncounterActions({ match, act }: { match: Match; act: (type: "match.leave" | "match.skip" | "match.extend") => void }) { return <><button className="quiet-button" onClick={() => act("match.skip")}>Next</button><button onClick={() => act("match.extend")} disabled={match.extended}>Extend</button><button className="danger-button" onClick={() => act("match.leave")}>Leave</button></>; }
+
+function send(socket: WebSocket, type: string, payload: object, matchId?: string) { socket.send(JSON.stringify({ version: 1, type, requestId: crypto.randomUUID(), matchId, payload })); }
+function parse(value: unknown): Envelope { const parsed = JSON.parse(String(value)) as Envelope; if (parsed.version !== 1 || typeof parsed.type !== "string" || !parsed.payload) throw new Error("Invalid event"); return parsed; }
 function label(value: string) { return value.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" "); }
-function errorMessage(code: unknown) {
-  if (code === "queue_unavailable") return "You are already matched or temporarily unavailable.";
-  if (code === "matchmaking_unavailable") return "Matching is temporarily unavailable. You remain in the queue.";
-  return "Discovery rejected an invalid action. Please reconnect.";
-}
+function errorMessage(code: unknown) { if (code === "queue_unavailable") return "You are already matched or temporarily unavailable."; if (code === "matchmaking_unavailable") return "Matching is temporarily unavailable. You remain in the queue."; if (code === "match_unavailable") return "That encounter has already ended."; return "Discovery rejected an invalid action. Please reconnect."; }

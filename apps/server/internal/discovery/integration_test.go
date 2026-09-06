@@ -101,8 +101,10 @@ func TestAuthenticatedCrossInstanceDiscovery(t *testing.T) {
 		Peer            Profile  `json:"peer"`
 		SharedInterests []string `json:"sharedInterests"`
 		Offerer         bool     `json:"offerer"`
+		StartedAt       int64    `json:"startedAt"`
+		ExpiresAt       int64    `json:"expiresAt"`
 	}
-	if json.Unmarshal(matchA.Payload, &found) != nil || found.Peer.ID != users["Lin"].ID || len(found.SharedInterests) != 2 {
+	if json.Unmarshal(matchA.Payload, &found) != nil || found.Peer.ID != users["Lin"].ID || len(found.SharedInterests) != 2 || found.ExpiresAt-found.StartedAt != encounterLength.Milliseconds() {
 		t.Fatalf("unexpected match context: %+v", found)
 	}
 	offer := event("webrtc.offer", matchA.MatchID, map[string]string{"type": "offer", "sdp": "v=0\r\n"})
@@ -132,7 +134,14 @@ func TestAuthenticatedCrossInstanceDiscovery(t *testing.T) {
 		t.Fatalf("recovered match context changed: %+v", recoveredContext)
 	}
 	readUntil(t, ctx, b, "peer.reconnected")
-	sendEvent(t, ctx, b, event("match.leave", matchA.MatchID, struct{}{}))
+	sendEvent(t, ctx, a2, event("match.extend", matchA.MatchID, struct{}{}))
+	if pending := readAny(t, ctx, a2); pending.Type != "match.extend_pending" {
+		t.Fatalf("expected private extension pending event, got %+v", pending)
+	}
+	sendEvent(t, ctx, b, event("match.extend", matchA.MatchID, struct{}{}))
+	readUntil(t, ctx, a2, "match.extended")
+	readUntil(t, ctx, b, "match.extended")
+	sendEvent(t, ctx, b, event("match.skip", matchA.MatchID, struct{}{}))
 	readUntil(t, ctx, b, "match.ended")
 	readUntil(t, ctx, a2, "match.ended")
 	sendEvent(t, ctx, a2, event("queue.join", "", preferences))
@@ -213,6 +222,84 @@ func TestAtomicTwoUserClaim(t *testing.T) {
 	group.Wait()
 	if successes.Load() != 1 {
 		t.Fatalf("expected one atomic claim, got %d", successes.Load())
+	}
+}
+
+func TestAuthoritativeExpiryWinsAfterDeadline(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	options, err := redis.ParseURL(os.Getenv("TEST_REDIS_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache := redis.NewClient(options)
+	defer cache.Close()
+	prefix := "test:lifecycle:" + randomID() + ":"
+	defer deletePrefix(context.Background(), cache, prefix)
+	store := Store{Redis: cache, Prefix: prefix}
+	a, b, connectionA, connectionB, matchID := randomID(), randomID(), randomID(), randomID(), randomID()
+	for user, connection := range map[string]string{a: connectionA, b: connectionB} {
+		if err := store.Connect(ctx, user, connection); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Enqueue(ctx, user, connection, Preferences{Intent: "new_friends", Languages: []string{"en"}}, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ok, err := store.Claim(ctx, a, b, connectionA, connectionB, matchID, "new_friends", nil, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now()); err != nil || !ok {
+		t.Fatalf("claim: ok=%v err=%v", ok, err)
+	}
+	past := time.Now().Add(-time.Second)
+	if err := cache.HSet(ctx, prefix+"match:"+matchID, "expiresAt", past.UnixMilli()).Err(); err != nil {
+		t.Fatal(err)
+	}
+	if err := cache.ZAdd(ctx, prefix+"deadlines", redis.Z{Score: float64(past.UnixMilli()), Member: matchID}).Err(); err != nil {
+		t.Fatal(err)
+	}
+	var extendResult int
+	var extendErr error
+	var group sync.WaitGroup
+	group.Add(2)
+	go func() {
+		defer group.Done()
+		extendResult, extendErr = store.Extend(ctx, a, connectionA, matchID, time.Now())
+	}()
+	go func() { defer group.Done(); _ = store.Sweep(ctx, time.Now()) }()
+	group.Wait()
+	if extendErr != nil || (extendResult != -1 && extendResult != 0) {
+		t.Fatalf("expired extension result=%d err=%v", extendResult, extendErr)
+	}
+	if _, exists, err := store.CurrentMatch(ctx, a); err != nil || exists {
+		t.Fatalf("expired match survived: exists=%v err=%v", exists, err)
+	}
+
+	c, d, connectionC, connectionD, graceMatch := randomID(), randomID(), randomID(), randomID(), randomID()
+	for user, connection := range map[string]string{c: connectionC, d: connectionD} {
+		if err := store.Connect(ctx, user, connection); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Enqueue(ctx, user, connection, Preferences{Intent: "new_friends", Languages: []string{"en"}}, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ok, err := store.Claim(ctx, c, d, connectionC, connectionD, graceMatch, "new_friends", nil, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now()); err != nil || !ok {
+		t.Fatalf("grace claim: ok=%v err=%v", ok, err)
+	}
+	if err := store.Disconnect(ctx, c, connectionC, time.Now().Add(-reconnectGrace-time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	newConnection := randomID()
+	if err := store.Connect(ctx, c, newConnection); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := store.Reconnect(ctx, c, newConnection, graceMatch, time.Now()); err != nil || ok {
+		t.Fatalf("reconnect after grace: ok=%v err=%v", ok, err)
+	}
+	if err := store.Sweep(ctx, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists, err := store.CurrentMatch(ctx, d); err != nil || exists {
+		t.Fatalf("disconnect-expired match survived: exists=%v err=%v", exists, err)
 	}
 }
 

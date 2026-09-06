@@ -61,7 +61,7 @@ func decode(data []byte) (Envelope, error) {
 			return envelope, err
 		}
 		envelope.Payload, _ = json.Marshal(normalized)
-	case "queue.leave", "presence.heartbeat", "match.leave":
+	case "queue.leave", "presence.heartbeat", "match.leave", "match.skip", "match.extend":
 		var empty struct{}
 		if strict(envelope.Payload, &empty) != nil {
 			return envelope, errors.New("invalid empty payload")
