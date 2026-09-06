@@ -19,6 +19,8 @@ export function Discovery({ api }: { api: string }) {
   const router = useRouter();
   const socket = useRef<WebSocket | null>(null), pc = useRef<RTCPeerConnection | null>(null);
   const localStream = useRef<MediaStream | null>(null), channel = useRef<RTCDataChannel | null>(null);
+  const rawStream = useRef<MediaStream | null>(null), cameraSource = useRef<HTMLVideoElement | null>(null);
+  const processorTimer = useRef<number | null>(null), mirrorRef = useRef(true);
   const localVideo = useRef<HTMLVideoElement | null>(null), remoteVideo = useRef<HTMLVideoElement | null>(null);
   const matchRef = useRef<Match | null>(null), requeue = useRef(false);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
@@ -33,6 +35,7 @@ export function Discovery({ api }: { api: string }) {
 
   useEffect(() => { preferencesRef.current = { intent, languages: [language], interests: selected }; }, [intent, language, selected]);
   useEffect(() => { matchRef.current = match; }, [match]);
+  useEffect(() => { mirrorRef.current = mirror; }, [mirror]);
   useEffect(() => { if (match && localVideo.current && localStream.current) localVideo.current.srcObject = localStream.current; }, [match]);
   useEffect(() => {
     if (!match || match.extended) return;
@@ -44,7 +47,10 @@ export function Discovery({ api }: { api: string }) {
     let stopped = false, heartbeat: ReturnType<typeof setInterval> | undefined;
     const cleanupCall = () => {
       channel.current?.close(); channel.current = null; pc.current?.close(); pc.current = null; pendingIce.current = [];
+      if (processorTimer.current !== null) window.clearInterval(processorTimer.current); processorTimer.current = null;
       localStream.current?.getTracks().forEach(track => track.stop()); localStream.current = null;
+      rawStream.current?.getTracks().forEach(track => track.stop()); rawStream.current = null;
+      cameraSource.current?.pause(); cameraSource.current = null;
       if (localVideo.current) localVideo.current.srcObject = null;
       if (remoteVideo.current) remoteVideo.current.srcObject = null;
     };
@@ -54,7 +60,23 @@ export function Discovery({ api }: { api: string }) {
     const startCall = async (found: Match, ice: IceConfig) => {
       cleanupCall();
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
+        const raw = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
+        rawStream.current = raw;
+        const source = document.createElement("video"); source.muted = true; source.playsInline = true; source.srcObject = raw; cameraSource.current = source; await source.play();
+        const canvas = document.createElement("canvas"); canvas.width = 640; canvas.height = 480;
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) throw new Error("video processing unavailable");
+        const draw = () => {
+          if (source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !source.videoWidth) return;
+          const width = Math.min(source.videoWidth, 960), height = Math.round(width * source.videoHeight / source.videoWidth);
+          if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+          context.save();
+          if (mirrorRef.current) { context.translate(canvas.width, 0); context.scale(-1, 1); }
+          context.drawImage(source, 0, 0, canvas.width, canvas.height); context.restore();
+        };
+        draw(); processorTimer.current = window.setInterval(draw, 1000 / 30);
+        const processedVideo = canvas.captureStream(30).getVideoTracks()[0];
+        const stream = new MediaStream([...raw.getAudioTracks(), processedVideo]);
         localStream.current = stream; if (localVideo.current) localVideo.current.srcObject = stream;
         setDevices((await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput"));
         const next = new RTCPeerConnection(ice); pc.current = next;
@@ -105,17 +127,17 @@ export function Discovery({ api }: { api: string }) {
   function matchAction(type: "match.leave" | "match.skip" | "match.extend") { if (!socket.current || !match) return; if (type === "match.skip") requeue.current = true; send(socket.current, type, {}, match.id); }
   function toggleInterest(value: string) { setSelected(current => current.includes(value) ? current.filter(item => item !== value) : current.length < 8 ? [...current, value] : current); }
   function sendChat(event: FormEvent) { event.preventDefault(); const text = draft.trim().slice(0, 500); if (!text || channel.current?.readyState !== "open") return; channel.current.send(text); setChat(items => [...items, `You: ${text}`]); setDraft(""); }
-  async function switchCamera(deviceId: string) { setCamera(deviceId); try { const stream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : true }); const next = stream.getVideoTracks()[0], sender = pc.current?.getSenders().find(item => item.track?.kind === "video"); await sender?.replaceTrack(next); localStream.current?.getVideoTracks().forEach(track => track.stop()); if (localStream.current) { localStream.current.getVideoTracks().forEach(track => localStream.current?.removeTrack(track)); localStream.current.addTrack(next); } if (localVideo.current) localVideo.current.srcObject = localStream.current; } catch { setMessage("Could not switch cameras."); } }
+  async function switchCamera(deviceId: string) { setCamera(deviceId); try { const nextStream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : true }); const source = cameraSource.current, current = rawStream.current; if (!source || !current) { nextStream.getTracks().forEach(track => track.stop()); return; } source.srcObject = nextStream; await source.play(); current.getVideoTracks().forEach(track => { track.stop(); current.removeTrack(track); }); current.addTrack(nextStream.getVideoTracks()[0]); } catch { setMessage("Could not switch cameras."); } }
 
   return <main className={match ? "encounter-shell" : "discover-shell"}>
     <header className="app-header"><Link className="wordmark" href="/">OneMinute</Link>{user && <span>Hi, {user.displayName}</span>}</header>
     {match ? <section className="encounter" aria-live="polite">
       <div className="encounter-top"><div><p className="eyebrow">Live encounter</p><strong>{match.peer.displayName}</strong></div><output className={match.extended ? "timer extended" : "timer"}>{match.extended ? "Extended" : `0:${String(seconds).padStart(2, "0")}`}</output></div>
-      <div className="video-stage"><figure className="video-tile remote-tile"><video ref={remoteVideo} autoPlay playsInline /><figcaption>{match.peer.displayName}</figcaption></figure><figure className="video-tile local-tile"><video ref={localVideo} autoPlay muted playsInline className={mirror ? "mirrored" : ""} /><figcaption>You</figcaption><button className="camera-settings" onClick={() => setSettingsOpen(true)} aria-label="Camera settings">⚙</button><div className="local-overlay-actions"><EncounterActions match={match} act={matchAction} /></div></figure></div>
+      <div className="video-stage"><figure className="video-tile remote-tile"><video ref={remoteVideo} autoPlay playsInline /><figcaption>{match.peer.displayName}</figcaption></figure><figure className="video-tile local-tile"><video ref={localVideo} autoPlay muted playsInline /><figcaption>You</figcaption><button className="camera-settings" onClick={() => setSettingsOpen(true)} aria-label="Camera settings">⚙</button><div className="local-overlay-actions"><EncounterActions match={match} act={matchAction} /></div></figure></div>
       <div className="encounter-actions desktop-actions"><EncounterActions match={match} act={matchAction} /></div>
       <p role="status" className="encounter-status">{message || (match.sharedInterests.length ? `You both like ${match.sharedInterests.map(label).join(", ")}.` : "Start with hello.")}</p>
       <form className="temp-chat" onSubmit={sendChat}><div className="chat-log" aria-live="polite">{chat.length ? chat.map((item, index) => <p key={index}>{item}</p>) : <p>Messages stay between your browsers and disappear after this encounter.</p>}</div><label><span className="sr-only">Temporary message</span><input value={draft} onChange={event => setDraft(event.target.value)} maxLength={500} placeholder="Say something…" /></label><button>Send</button></form>
-      {settingsOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSettingsOpen(false)}><div className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="camera-title" onMouseDown={event => event.stopPropagation()}><div className="settings-heading"><h2 id="camera-title">Camera</h2><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button></div><label className="check"><input type="checkbox" checked={mirror} onChange={event => setMirror(event.target.checked)} /> Mirror my preview</label><label>Camera<select value={camera} onChange={event => void switchCamera(event.target.value)}><option value="">Default camera</option>{devices.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || "Camera"}</option>)}</select></label><p>Mirror changes only what you see. Effects and filters will arrive through the same camera panel.</p></div></div>}
+      {settingsOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSettingsOpen(false)}><div className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="camera-title" onMouseDown={event => event.stopPropagation()}><div className="settings-heading"><h2 id="camera-title">Camera</h2><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close">×</button></div><label className="check"><input type="checkbox" checked={mirror} onChange={event => setMirror(event.target.checked)} /> Mirror video for both people</label><label>Camera<select value={camera} onChange={event => void switchCamera(event.target.value)}><option value="">Default camera</option>{devices.map(device => <option key={device.deviceId} value={device.deviceId}>{device.label || "Camera"}</option>)}</select></label><p>Your preview is exactly what the other person receives. Selfie-style mirroring is on by default.</p></div></div>}
       <nav className="mobile-tabs" aria-label="App"><Link href="/">Home</Link><Link href="/app/discover" aria-current="page">Discover</Link></nav>
     </section> : <section className="discovery-card"><p className="eyebrow">Discover</p><h1>Who would you like to meet?</h1><p>Your choice applies to this session. Dating only matches with another person who chose Dating.</p><form className="preference-form" onSubmit={join}><label>Current intent<select value={intent} onChange={event => setIntent(event.target.value)} disabled={phase === "queued"}>{intents.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label><label>Conversation language<select value={language} onChange={event => setLanguage(event.target.value)} disabled={phase === "queued"}>{languages.map(([value, text]) => <option value={value} key={value}>{text}</option>)}</select></label><fieldset disabled={phase === "queued"}><legend>A few things you enjoy</legend><div className="interest-grid">{interests.map(item => <label className="interest" key={item}><input type="checkbox" checked={selected.includes(item)} onChange={() => toggleInterest(item)} />{label(item)}</label>)}</div></fieldset>{phase === "queued" ? <button type="button" className="quiet-button" onClick={() => socket.current && send(socket.current, "queue.leave", {})}>Leave queue</button> : <button type="submit" disabled={phase !== "ready"}>Start discovering</button>}</form><p role="status" className="auth-status">{message}</p></section>}
   </main>;

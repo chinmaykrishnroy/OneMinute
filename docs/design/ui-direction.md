@@ -32,5 +32,9 @@ Use square video surfaces as the default visual frame, with `object-fit: cover` 
 - Desktop and wide screens: place the remote participant in the left half and the local participant in the right half. Center square video surfaces within each pane rather than stretching video to the viewport shape.
 - Very short or unusually wide screens: preserve both faces and controls by reducing gaps and moving secondary metadata into an overlay; never let primary call controls leave the viewport.
 
-The local preview has a camera-settings button that opens an accessible overlay. The first encounter implementation includes preview mirroring and input-device selection. Mirroring is local presentation only and must not silently transform the transmitted track. Advanced blur, effects and playful filters may later use a replaceable processed-video-track boundary (for example WebGL/MediaPipe/canvas capture), with an easy “None” state and performance fallback. Core calling must never depend on an effect pipeline.
+The local preview has a camera-settings button that opens an accessible overlay. The encounter defaults to a selfie-style mirrored camera and input-device selection. The preview and transmitted track use the same canvas-processed video, so changing the mirror setting changes what both people see. Advanced blur, effects and playful filters may later extend this processed-video-track boundary (for example WebGL/MediaPipe), with an easy “None” state and performance fallback.
+
+## App icon
+
+The canonical mark is `apps/web/app/icon.svg`: a text-free 1:00 clock with the product palette and geometry that remains clear at 32×32. `scripts/generate-icons.py` generates the PNG, Apple icon and multi-size ICO derivatives from the same geometry. Navigation titles use the root template `%s · OneMinute`, with `OneMinute` alone on the home page.
 

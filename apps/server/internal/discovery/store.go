@@ -107,7 +107,7 @@ func (s Store) Recent(ctx context.Context, userA, userB string) (bool, error) {
 	return count > 0, err
 }
 
-func (s Store) Claim(ctx context.Context, userA, userB, connectionA, connectionB, matchID, intent string, sharedInterests []string, eventA, eventB []byte, now time.Time) (bool, error) {
+func (s Store) Claim(ctx context.Context, userA, userB, connectionA, connectionB, matchID, intent string, sharedInterests []string, eventA, eventB []byte, now time.Time, allowRecent bool) (bool, error) {
 	shared, err := json.Marshal(sharedInterests)
 	if err != nil {
 		return false, err
@@ -115,7 +115,7 @@ func (s Store) Claim(ctx context.Context, userA, userB, connectionA, connectionB
 	result, err := s.Redis.Eval(ctx, claimScript, []string{
 		s.presenceKey(userA), s.presenceKey(userB), s.matchKey(userA), s.matchKey(userB),
 		s.key("match:") + matchID, s.recentKey(userA, userB), s.key("queue"), s.key("preferences"), s.key("deadlines"),
-	}, userA, userB, connectionA, connectionB, matchID, now.UnixMilli(), now.Add(encounterLength).UnixMilli(), int(matchTTL.Seconds()), int(recentTTL.Seconds()), intent, string(shared), string(eventA), string(eventB), s.prefix()).Int()
+	}, userA, userB, connectionA, connectionB, matchID, now.UnixMilli(), now.Add(encounterLength).UnixMilli(), int(matchTTL.Seconds()), int(recentTTL.Seconds()), intent, string(shared), string(eventA), string(eventB), s.prefix(), boolString(allowRecent)).Int()
 	return result == 1, err
 }
 
@@ -241,6 +241,13 @@ func (s Store) recentKey(a, b string) string {
 	return s.key("recent:") + strings.Join(ids, ":")
 }
 
+func boolString(value bool) string {
+	if value {
+		return "1"
+	}
+	return "0"
+}
+
 const heartbeatScript = `
 if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end
 redis.call('EXPIRE',KEYS[1],ARGV[2])
@@ -281,7 +288,7 @@ const claimScript = `
 if redis.call('GET',KEYS[1])~=ARGV[3] or redis.call('GET',KEYS[2])~=ARGV[4] then return 0 end
 if redis.call('EXISTS',KEYS[3])==1 or redis.call('EXISTS',KEYS[4])==1 then return 0 end
 if redis.call('ZSCORE',KEYS[7],ARGV[1])==false or redis.call('ZSCORE',KEYS[7],ARGV[2])==false then return 0 end
-if redis.call('EXISTS',KEYS[6])==1 then return 0 end
+if redis.call('EXISTS',KEYS[6])==1 and ARGV[15]~='1' then return 0 end
 redis.call('ZREM',KEYS[7],ARGV[1],ARGV[2])
 redis.call('HDEL',KEYS[8],ARGV[1],ARGV[2])
 redis.call('HSET',KEYS[5],'a',ARGV[1],'b',ARGV[2],'state','active','startedAt',ARGV[6],'expiresAt',ARGV[7],'intent',ARGV[10],'sharedInterests',ARGV[11])

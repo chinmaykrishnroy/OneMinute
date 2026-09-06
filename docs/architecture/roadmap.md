@@ -26,7 +26,7 @@ Authenticated presence and sockets; queue membership; current session intent; la
 
 ### Milestone 4 — Encounter
 
-Authoritative 60-second lifecycle, server timestamps, responsive square-video encounter layout, local preview mirror/device settings, Next/Skip, private mutual Extend, RTCDataChannel temporary chat, 30–60 second reconnect grace, cleanup/requeue and atomic expiry/extension handling. Advanced camera effects remain an optional later enhancement behind a processed-track boundary.
+Authoritative 60-second lifecycle, server timestamps, responsive square-video encounter layout, shared preview/transmitted mirror processing and device settings, Next/Skip, private mutual Extend, RTCDataChannel temporary chat, 30–60 second reconnect grace, cleanup/requeue and atomic expiry/extension handling. Advanced camera effects remain an optional later enhancement behind the processed-track boundary.
 
 ## Planned product slices
 

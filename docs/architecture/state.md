@@ -2,7 +2,7 @@
 Implemented:
 - PostgreSQL: versioned schema, users, profiles, Google external identities and hashed, revocable application sessions.
 - Redis: development rooms (10-minute TTL), presence (40-second TTL), atomic two-slot claims, room-scoped authorization, transient Pub/Sub delivery and room-creation rate counters.
-- Redis discovery: authenticated presence (40-second TTL), session preference queue, atomic two-user claims, user-to-match mappings, finite match state, recent-pair exclusions, disconnect markers and per-user cross-instance Pub/Sub routing.
+- Redis discovery: authenticated presence (40-second TTL), session preference queue, atomic two-user claims, user-to-match mappings, finite match state, recent-pair preference with sparse-queue fallback, disconnect markers and per-user cross-instance Pub/Sub routing.
 - PostgreSQL discovery: directed block records used by server-side candidate eligibility.
 - Process memory: connection pools, configuration, logs and TURN transport allocations only.
 

@@ -201,38 +201,45 @@ func (h *Handler) tryMatch(ctx context.Context, user auth.User, connectionID str
 		}
 		return left > right
 	})
-	for _, candidate := range candidates {
-		if !compatible(preferences, candidate.Preferences) {
-			continue
-		}
-		recent, err := h.Store.Recent(ctx, user.ID, candidate.ID)
-		if err != nil || recent {
-			continue
-		}
-		eligible, err := h.Repo.EligiblePair(ctx, user.ID, candidate.ID)
-		if err != nil || !eligible {
-			continue
-		}
-		candidateProfile, err := h.Repo.Profile(ctx, candidate.ID)
-		if err != nil {
-			continue
-		}
-		shared := sharedInterests(preferences.Interests, candidate.Preferences.Interests)
-		matchID := randomID()
-		startedAt := h.now().UTC()
-		expiresAt := startedAt.Add(encounterLength)
-		lifecycle := map[string]any{"startedAt": startedAt.UnixMilli(), "expiresAt": expiresAt.UnixMilli(), "state": "active"}
-		eventForUser, _ := json.Marshal(event("match.found", matchID, merge(lifecycle, map[string]any{"peer": candidateProfile, "sharedInterests": shared, "intent": resolvedIntent(preferences.Intent, candidate.Preferences.Intent), "offerer": true})))
-		eventForCandidate, _ := json.Marshal(event("match.found", matchID, merge(lifecycle, map[string]any{"peer": Profile{ID: user.ID, DisplayName: user.DisplayName, AvatarURL: user.AvatarURL}, "sharedInterests": shared, "intent": resolvedIntent(preferences.Intent, candidate.Preferences.Intent), "offerer": false})))
-		claimed, err := h.Store.Claim(ctx, user.ID, candidate.ID, connectionID, candidate.ConnectionID, matchID, resolvedIntent(preferences.Intent, candidate.Preferences.Intent), shared, eventForUser, eventForCandidate, startedAt)
-		if err != nil {
-			return err
-		}
-		if claimed {
-			return nil
+	for pass := 0; pass < 2; pass++ {
+		for _, candidate := range candidates {
+			if !compatible(preferences, candidate.Preferences) {
+				continue
+			}
+			recent, err := h.Store.Recent(ctx, user.ID, candidate.ID)
+			if err != nil || (pass == 0 && recent) || (pass == 1 && !recent) {
+				continue
+			}
+			claimed, err := h.claimCandidate(ctx, user, connectionID, preferences, candidate, recent)
+			if err != nil {
+				return err
+			}
+			if claimed {
+				return nil
+			}
 		}
 	}
 	return nil
+}
+
+func (h *Handler) claimCandidate(ctx context.Context, user auth.User, connectionID string, preferences Preferences, candidate queuedUser, allowRecent bool) (bool, error) {
+	eligible, err := h.Repo.EligiblePair(ctx, user.ID, candidate.ID)
+	if err != nil || !eligible {
+		return false, err
+	}
+	candidateProfile, err := h.Repo.Profile(ctx, candidate.ID)
+	if err != nil {
+		return false, err
+	}
+	shared := sharedInterests(preferences.Interests, candidate.Preferences.Interests)
+	matchID := randomID()
+	startedAt := h.now().UTC()
+	expiresAt := startedAt.Add(encounterLength)
+	intent := resolvedIntent(preferences.Intent, candidate.Preferences.Intent)
+	lifecycle := map[string]any{"startedAt": startedAt.UnixMilli(), "expiresAt": expiresAt.UnixMilli(), "state": "active"}
+	eventForUser, _ := json.Marshal(event("match.found", matchID, merge(lifecycle, map[string]any{"peer": candidateProfile, "sharedInterests": shared, "intent": intent, "offerer": true})))
+	eventForCandidate, _ := json.Marshal(event("match.found", matchID, merge(lifecycle, map[string]any{"peer": Profile{ID: user.ID, DisplayName: user.DisplayName, AvatarURL: user.AvatarURL}, "sharedInterests": shared, "intent": intent, "offerer": false})))
+	return h.Store.Claim(ctx, user.ID, candidate.ID, connectionID, candidate.ConnectionID, matchID, intent, shared, eventForUser, eventForCandidate, startedAt, allowRecent)
 }
 
 func merge(first, second map[string]any) map[string]any {

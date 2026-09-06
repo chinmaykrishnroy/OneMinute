@@ -147,15 +147,14 @@ func TestAuthenticatedCrossInstanceDiscovery(t *testing.T) {
 	sendEvent(t, ctx, a2, event("queue.join", "", preferences))
 	readUntil(t, ctx, a2, "queue.joined")
 	sendEvent(t, ctx, b, event("queue.join", "", preferences))
-	readUntil(t, ctx, b, "queue.joined")
-	time.Sleep(100 * time.Millisecond)
-	if _, matched, err := handler.Store.CurrentMatch(ctx, users["Ada"].ID); err != nil || matched {
-		t.Fatalf("recent pair immediately rematched: matched=%v err=%v", matched, err)
+	rematchA := readUntil(t, ctx, a2, "match.found")
+	rematchB := readUntil(t, ctx, b, "match.found")
+	if rematchA.MatchID == "" || rematchA.MatchID != rematchB.MatchID {
+		t.Fatalf("recent pair was not used as the only-candidate fallback: %q %q", rematchA.MatchID, rematchB.MatchID)
 	}
-	sendEvent(t, ctx, a2, event("queue.leave", "", struct{}{}))
-	readUntil(t, ctx, a2, "queue.left")
-	sendEvent(t, ctx, b, event("queue.leave", "", struct{}{}))
-	readUntil(t, ctx, b, "queue.left")
+	sendEvent(t, ctx, b, event("match.leave", rematchB.MatchID, struct{}{}))
+	readUntil(t, ctx, a2, "match.ended")
+	readUntil(t, ctx, b, "match.ended")
 
 	if _, err := db.Exec(ctx, "INSERT INTO blocks(blocker_user_id,blocked_user_id) VALUES ($1,$2)", users["Blocked A"].ID, users["Blocked B"].ID); err != nil {
 		t.Fatal(err)
@@ -209,7 +208,7 @@ func TestAtomicTwoUserClaim(t *testing.T) {
 		group.Add(1)
 		go func() {
 			defer group.Done()
-			ok, err := store.Claim(ctx, a, b, connectionA, connectionB, randomID(), "new_friends", []string{"music"}, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now())
+			ok, err := store.Claim(ctx, a, b, connectionA, connectionB, randomID(), "new_friends", []string{"music"}, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now(), false)
 			if err != nil {
 				t.Error(err)
 				return
@@ -246,7 +245,7 @@ func TestAuthoritativeExpiryWinsAfterDeadline(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if ok, err := store.Claim(ctx, a, b, connectionA, connectionB, matchID, "new_friends", nil, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now()); err != nil || !ok {
+	if ok, err := store.Claim(ctx, a, b, connectionA, connectionB, matchID, "new_friends", nil, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now(), false); err != nil || !ok {
 		t.Fatalf("claim: ok=%v err=%v", ok, err)
 	}
 	past := time.Now().Add(-time.Second)
@@ -282,7 +281,7 @@ func TestAuthoritativeExpiryWinsAfterDeadline(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if ok, err := store.Claim(ctx, c, d, connectionC, connectionD, graceMatch, "new_friends", nil, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now()); err != nil || !ok {
+	if ok, err := store.Claim(ctx, c, d, connectionC, connectionD, graceMatch, "new_friends", nil, []byte(`{"version":1}`), []byte(`{"version":1}`), time.Now(), false); err != nil || !ok {
 		t.Fatalf("grace claim: ok=%v err=%v", ok, err)
 	}
 	if err := store.Disconnect(ctx, c, connectionC, time.Now().Add(-reconnectGrace-time.Second)); err != nil {
