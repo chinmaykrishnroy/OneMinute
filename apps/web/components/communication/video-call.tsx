@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, PointerEvent } from "react";
 import { useCommunication, LiveEvent } from "./runtime";
 import { callCamera } from "@/lib/webrtc/call-camera";
+import { attachCallMedia, receiveTrack } from "@/lib/webrtc/call-media";
 export type CallSession = {
   id: string;
   connectionId: string;
@@ -67,11 +68,11 @@ export function CallOverlay({
     peer.current = null;
   }
   async function finish(type = "end") {
+    cleanup();
+    closeRef.current();
     try {
       await action(type);
     } catch {}
-    cleanup();
-    closeRef.current();
   }
   async function setup() {
     if (started.current) return;
@@ -96,17 +97,11 @@ export function CallOverlay({
       if (localElement.current) localElement.current.srcObject = media;
       const connection = new RTCPeerConnection(ice);
       peer.current = connection;
-      media
-        .getAudioTracks()
-        .forEach((track) => connection.addTrack(track, media));
-      sender.current = connection.addTransceiver(
-        media.getVideoTracks()[0] || "video",
-        { direction: "sendrecv", streams: [media] },
-      ).sender;
+      if (call.outgoing)
+        sender.current = await attachCallMedia(connection, media, false);
+      const remote = new MediaStream();
       connection.ontrack = (e) => {
-        if (remoteElement.current)
-          remoteElement.current.srcObject =
-            e.streams[0] || new MediaStream([e.track]);
+        receiveTrack(remote, e, remoteElement.current);
       };
       connection.onicecandidate = (e) => {
         if (e.candidate)
@@ -201,6 +196,8 @@ export function CallOverlay({
             await pc.setRemoteDescription(
               event.payload as RTCSessionDescriptionInit,
             );
+            if (!stream.current) return;
+            sender.current = await attachCallMedia(pc, stream.current, true);
             for (const candidate of pending.current.splice(0))
               await pc.addIceCandidate(candidate);
             const answer = await pc.createAnswer();

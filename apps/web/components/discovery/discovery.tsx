@@ -7,6 +7,8 @@ import { AppHeader, MobileNav } from "@/components/navigation/mobile-nav";
 
 import { Profile, profileReady, intents, languages, interestLabel } from "@/lib/preferences";
 import { Icon } from "@/components/navigation/icon";
+import { CameraCapture, processCamera } from "@/lib/webrtc/processed-camera";
+import { receiveTrack } from "@/lib/webrtc/call-media";
 type Peer = { id: string; displayName: string; avatarUrl: string };
 type IceConfig = { iceServers: RTCIceServer[] };
 type Match = { id: string; peer: Peer; sharedInterests: string[]; intent?: string; offerer: boolean; expiresAt: number; extended: boolean; connected: boolean };
@@ -17,8 +19,8 @@ export function Discovery({ api }: { api: string }) {
   const router = useRouter();
   const socket = useRef<WebSocket | null>(null), pc = useRef<RTCPeerConnection | null>(null);
   const localStream = useRef<MediaStream | null>(null), channel = useRef<RTCDataChannel | null>(null);
-  const rawStream = useRef<MediaStream | null>(null), cameraSource = useRef<HTMLVideoElement | null>(null);
-  const processorTimer = useRef<number | null>(null), mirrorRef = useRef(true);
+  const rawStream = useRef<MediaStream | null>(null), capture = useRef<CameraCapture | null>(null);
+  const mirrorRef = useRef(true), mediaGeneration = useRef(0);
   const localVideo = useRef<HTMLVideoElement | null>(null), remoteVideo = useRef<HTMLVideoElement | null>(null);
   const matchRef = useRef<Match | null>(null), requeue = useRef(false);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
@@ -48,37 +50,27 @@ export function Discovery({ api }: { api: string }) {
       if (remoteVideo.current) remoteVideo.current.srcObject = null;
     };
     const cleanupMedia = () => {
-      if (processorTimer.current !== null) window.clearInterval(processorTimer.current); processorTimer.current = null;
+      mediaGeneration.current++; capture.current?.stop(); capture.current = null;
       localStream.current?.getTracks().forEach(track => track.stop()); localStream.current = null;
       rawStream.current?.getTracks().forEach(track => track.stop()); rawStream.current = null;
-      cameraSource.current?.pause(); cameraSource.current = null;
       if (localVideo.current) localVideo.current.srcObject = null;
     };
     const cleanupCall = () => { cleanupPeer(); cleanupMedia(); };
     const attachChannel = (next: RTCDataChannel) => { channel.current = next; next.onmessage = event => setChat(items => [...items, `Them: ${String(event.data).slice(0, 500)}`]); };
-    const waitForConnection = async () => { for (let attempt = 0; attempt < 600; attempt++) { if (pc.current) return pc.current; await new Promise(resolve => setTimeout(resolve, 50)); } return null; };
     const applyPendingIce = async (connection: RTCPeerConnection) => { for (const candidate of pendingIce.current.splice(0)) { try { await connection.addIceCandidate(candidate); } catch {} } };
     const startCall = async (found: Match, ice: IceConfig) => {
       cleanupPeer();
       try {
         if (!localStream.current || localStream.current.getTracks().some(track => track.readyState === "ended")) {
           cleanupMedia();
+          const generation = mediaGeneration.current;
           const raw = await navigator.mediaDevices.getUserMedia({ audio: true, video: adaptiveVideoConstraints() });
+          if (stopped || generation !== mediaGeneration.current) { raw.getTracks().forEach(track => track.stop()); return; }
           rawStream.current = raw;
-          const source = document.createElement("video"); source.muted = true; source.playsInline = true; source.srcObject = raw; cameraSource.current = source; await source.play();
-          const canvas = document.createElement("canvas"); canvas.width = 1920; canvas.height = 1080;
-          const context = canvas.getContext("2d", { alpha: false });
-          if (!context) throw new Error("video processing unavailable");
-          const draw = () => {
-            if (source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !source.videoWidth) return;
-            if (canvas.width !== source.videoWidth || canvas.height !== source.videoHeight) { canvas.width = source.videoWidth; canvas.height = source.videoHeight; }
-            context.save();
-            if (mirrorRef.current) { context.translate(canvas.width, 0); context.scale(-1, 1); }
-            context.drawImage(source, 0, 0, canvas.width, canvas.height); context.restore();
-          };
-          draw(); processorTimer.current = window.setInterval(draw, 1000 / 30);
-          const processedVideo = canvas.captureStream(30).getVideoTracks()[0]; processedVideo.contentHint = "motion";
-          localStream.current = new MediaStream([...raw.getAudioTracks(), processedVideo]);
+          const processed = await processCamera(raw, () => mirrorRef.current);
+          if (stopped || generation !== mediaGeneration.current) { processed.stop(); raw.getTracks().forEach(track => track.stop()); return; }
+          capture.current = processed;
+          localStream.current = new MediaStream([...raw.getAudioTracks(), processed.track]);
           setDevices((await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput"));
         }
         const stream = localStream.current;
@@ -92,7 +84,8 @@ export function Discovery({ api }: { api: string }) {
             await sender.setParameters(parameters);
           }
         }
-        next.ontrack = event => { if (remoteVideo.current) remoteVideo.current.srcObject = event.streams[0]; };
+        const remoteStream = new MediaStream();
+        next.ontrack = event => receiveTrack(remoteStream, event, remoteVideo.current);
         next.onicecandidate = event => { if (event.candidate && socket.current) send(socket.current, "webrtc.ice", event.candidate.toJSON(), found.id); };
         next.ondatachannel = event => attachChannel(event.channel);
         if (found.offerer) { attachChannel(next.createDataChannel("chat", { ordered: true })); const offer = await next.createOffer(); await next.setLocalDescription(offer); if (socket.current) send(socket.current, "webrtc.offer", offer, found.id); }
@@ -107,7 +100,9 @@ export function Discovery({ api }: { api: string }) {
         preferencesRef.current = { intent: saved.discoveryIntent, languages: saved.languages, interests: saved.interests };
         const url = new URL("/v1/discovery/ws", api); url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
         const ws = new WebSocket(url); socket.current = ws; let ice: IceConfig = { iceServers: [] };
-        ws.onmessage = async event => {
+        let handling = Promise.resolve();
+        ws.onmessage = event => { handling = handling.then(async () => {
+          if (stopped || ws.readyState !== WebSocket.OPEN) return;
           let incoming: Envelope; try { incoming = parse(event.data); } catch { ws.close(1002, "invalid server event"); return; }
           if (incoming.type === "connection.ready") { ice = incoming.payload.ice as IceConfig; setPhase("ready"); setMessage("Your preferences are set. A new conversation is one tap away."); }
           else if (incoming.type === "queue.joined") { setPhase("queued"); setMessage("Looking for someone compatible…"); }
@@ -116,8 +111,8 @@ export function Discovery({ api }: { api: string }) {
             const found: Match = { id: incoming.matchId, peer: incoming.payload.peer as Peer, sharedInterests: (incoming.payload.sharedInterests as string[] | undefined) ?? [], intent: incoming.payload.intent as string | undefined, offerer: Boolean(incoming.payload.offerer), expiresAt: Number(incoming.payload.expiresAt), extended: incoming.payload.state === "extended", connected: Boolean(incoming.payload.connectionId) };
             matchRef.current = found; setMatch(found); setPhase("matched"); setMessage(""); setChat([]); await startCall(found, ice);
           } else if (incoming.type === "webrtc.offer" && incoming.matchId === matchRef.current?.id) {
-            const connection = await waitForConnection(); if (!connection) return; await connection.setRemoteDescription(incoming.payload as unknown as RTCSessionDescriptionInit); await applyPendingIce(connection); const answer = await connection.createAnswer(); await connection.setLocalDescription(answer); send(ws, "webrtc.answer", answer, incoming.matchId);
-          } else if (incoming.type === "webrtc.answer" && incoming.matchId === matchRef.current?.id) { const connection = await waitForConnection(); if (connection) { await connection.setRemoteDescription(incoming.payload as unknown as RTCSessionDescriptionInit); await applyPendingIce(connection); } }
+            const connection = pc.current; if (!connection) return; await connection.setRemoteDescription(incoming.payload as unknown as RTCSessionDescriptionInit); await applyPendingIce(connection); const answer = await connection.createAnswer(); await connection.setLocalDescription(answer); send(ws, "webrtc.answer", answer, incoming.matchId);
+          } else if (incoming.type === "webrtc.answer" && incoming.matchId === matchRef.current?.id) { const connection = pc.current; if (connection) { await connection.setRemoteDescription(incoming.payload as unknown as RTCSessionDescriptionInit); await applyPendingIce(connection); } }
           else if (incoming.type === "webrtc.ice" && incoming.matchId === matchRef.current?.id) { const candidate = incoming.payload as RTCIceCandidateInit, connection = pc.current; if (!connection?.remoteDescription) pendingIce.current.push(candidate); else try { await connection.addIceCandidate(candidate); } catch {} }
           else if (incoming.type === "match.extend_pending") setMessage("Your extension choice is private. Waiting for their choice.");
           else if (incoming.type === "match.extended") { setMatch(current => current ? { ...current, extended: true } : current); setMessage("You both chose to keep talking."); }
@@ -130,7 +125,7 @@ export function Discovery({ api }: { api: string }) {
             if (requeue.current) { requeue.current = false; send(ws, "queue.join", preferencesRef.current); setMessage("Finding your next conversation…"); }
             else setMessage(incoming.payload.reason === "expired" ? "That minute ended. Discover again when you are ready." : "That encounter ended. You can discover again.");
           } else if (incoming.type === "error") setMessage(errorMessage(incoming.payload.code));
-        };
+        }).catch(() => { if (!stopped) setMessage("Media could not reconnect. Leave this encounter and try again."); }); };
         ws.onopen = () => { heartbeat = setInterval(() => send(ws, "presence.heartbeat", {}), 20_000); };
         ws.onclose = () => { if (!stopped) { cleanupCall(); setPhase("offline"); setMessage("Discovery disconnected. Refresh to reconnect safely."); } };
         ws.onerror = () => setMessage("Could not reach discovery. Please try again.");
@@ -142,7 +137,21 @@ export function Discovery({ api }: { api: string }) {
   function join(event?: FormEvent) { event?.preventDefault(); if (socket.current?.readyState === WebSocket.OPEN) { send(socket.current, "queue.join", preferencesRef.current); setMessage("Joining discovery…"); } }
   function matchAction(type: "match.leave" | "match.skip" | "match.extend" | "match.connect") { if (!socket.current || !match) return; if (type === "match.skip") requeue.current = true; send(socket.current, type, {}, match.id); }
   function sendChat(event: FormEvent) { event.preventDefault(); const text = draft.trim().slice(0, 500); if (!text || channel.current?.readyState !== "open") return; channel.current.send(text); setChat(items => [...items, `You: ${text}`]); setDraft(""); }
-  async function switchCamera(deviceId: string) { setCamera(deviceId); try { const nextStream = await navigator.mediaDevices.getUserMedia({ video: { ...adaptiveVideoConstraints(), ...(deviceId ? { deviceId: { exact: deviceId } } : {}) } }); const source = cameraSource.current, current = rawStream.current; if (!source || !current) { nextStream.getTracks().forEach(track => track.stop()); return; } source.srcObject = nextStream; await source.play(); current.getVideoTracks().forEach(track => { track.stop(); current.removeTrack(track); }); current.addTrack(nextStream.getVideoTracks()[0]); } catch { setMessage("Could not switch cameras."); } }
+  async function switchCamera(deviceId: string) {
+    const generation = mediaGeneration.current;
+    let next: CameraCapture | null = null;
+    try {
+      const raw = await navigator.mediaDevices.getUserMedia({ video: { ...adaptiveVideoConstraints(), ...(deviceId ? { deviceId: { exact: deviceId } } : {}) } });
+      next = await processCamera(raw, () => mirrorRef.current);
+      const stream = localStream.current, sender = pc.current?.getSenders().find(item => item.track?.kind === "video");
+      if (!stream || !sender || generation !== mediaGeneration.current) { next.stop(); return; }
+      await sender.replaceTrack(next.track);
+      capture.current?.stop(); capture.current = next;
+      stream.getVideoTracks().forEach(track => { track.stop(); stream.removeTrack(track); }); stream.addTrack(next.track);
+      if (localVideo.current) localVideo.current.srcObject = new MediaStream(stream.getTracks());
+      setCamera(deviceId);
+    } catch { next?.stop(); setMessage("Could not switch cameras."); }
+  }
   async function blockPeer() { if (!match) return; const response = await fetch(new URL("/v1/blocks", api), { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId: match.peer.id, matchId: match.id }) }); if (response.ok) { setSafetyOpen(false); setMessage("Blocked. You will not be matched again."); } else setMessage("Could not block this person."); }
   async function reportPeer(event: FormEvent) { event.preventDefault(); if (!match) return; const response = await fetch(new URL("/v1/reports", api), { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId: match.peer.id, matchId: match.id, category: reportCategory, details: reportDetails }) }); if (response.ok) { setSafetyOpen(false); setMessage("Report received. Thank you for helping keep OneMinute safe."); } else setMessage("Could not submit the report."); }
 
