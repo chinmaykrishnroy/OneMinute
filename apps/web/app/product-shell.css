@@ -135,7 +135,8 @@ html {
   margin-left: auto;
 }
 .messenger-shell {
-  max-width: 1200px;
+  /* Keep the inbox header on the same reading column as every other tab. */
+  max-width: 1120px;
 }
 .messenger {
   display: block;
