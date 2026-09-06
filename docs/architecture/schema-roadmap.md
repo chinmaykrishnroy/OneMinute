@@ -1,6 +1,6 @@
 # Schema roadmap
 
-Status: migrations ship with the feature slice that owns them. Names below are conceptual until their milestone migration is reviewed.
+Status: migrations ship with the feature slice that owns them. Future names below are conceptual until their milestone migration is reviewed.
 
 ## Implemented
 
@@ -13,13 +13,13 @@ Redis owns presence, queue entries, current session intent/language/interests, m
 
 Match state is initially live and finite in Redis. Its identifiers and participant ordering must be suitable for later durable encounter outcomes and mutual Connect creation. Session-scoped interests are not written to profile tables in this milestone.
 
-## Milestone 4 — Encounter outcomes
+## Milestone 4 — Encounter lifecycle (implemented)
 
-Persist only durable, privacy-safe encounter outcome metadata needed by product and abuse rules. Live deadlines, reconnect grace and private Extend votes stay in Redis. Calls and temporary DataChannel messages are never stored.
+Live deadlines, reconnect grace and private Extend votes stay in Redis. Calls and temporary DataChannel messages are never stored. Encounter metadata becomes durable only when Milestone 5 Connect or report behavior needs it.
 
-## Milestone 5 — Social graph
+## Milestone 5 — Social graph (implemented)
 
-Add normalized durable profile interests/preferences, reports/reputation inputs and encounter-backed `connections`. Store each unordered connection pair canonically and enforce at most one active relationship for that pair. Connection creation must reference a valid encounter with mutual Connect; arbitrary out-of-encounter friend requests are invalid. Removal and blocking are distinct, and a block supersedes connection visibility and authorization.
+Normalized `profile_interests` and `profile_languages` enrich profiles. `reports` provide bounded, relationship-authorized reputation inputs. `encounters` authorize durable `connections`; each pair is canonical and has at most one active relationship. Arbitrary out-of-encounter friend requests are invalid. Removal and blocking are distinct, and a block supersedes connection visibility and authorization.
 
 Private Connect votes stay in Redis while the encounter is active. Only their mutual outcome becomes durable. One-sided votes expire without notification or durable social edge.
 

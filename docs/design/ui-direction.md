@@ -12,14 +12,14 @@ This is the persistent visual direction for OneMinute. Keep the product name in 
 - Pair warm neutral surfaces with a small set of soft accent colors. Mint, lilac and pale yellow are possible starting points, not a finalized palette.
 - Use clean typography, generous spacing and a quiet page structure. Make people and live video the focus.
 - Use familiar social patterns: compact avatars, interest pills, clear call controls and lightweight profile cards.
-- Give each screen a clear primary action. During a call, keep the timer, Next and Extend easy to understand and reach.
+- Give each screen a clear primary action. During a call, keep the timer, Next, Extend, Connect and safety actions easy to understand and reach.
 - Preserve readable contrast, visible keyboard focus, reduced-motion support and touch targets of at least 44 CSS pixels. State changes must be understandable without color alone.
 
 Avoid heavy decoration, dense dashboard layouts and oversized shadows that compete with faces or controls. Do not add fabricated social activity or nonfunctional controls for appearance.
 
 ## Implementation timing
 
-Build functional vertical slices in the agreed milestone order. The current networking lab is a diagnostic screen, not the finished social experience. The shared stylesheet now establishes the first visual foundation: warm neutral surfaces, mint and lilac controls, rounded borders, compact shadows and visible keyboard focus. The complete social screen design remains part of future feature slices.
+Build functional vertical slices in the agreed milestone order. The networking lab remains a diagnostic screen. Product screens use warm neutral surfaces, mint and lilac controls, rounded borders, compact shadows and visible keyboard focus. Discovery, encounter, profile and connection screens share this system across desktop, tablet and bottom-tab mobile layouts.
 
 Discovery is conversation-first. Before a call, show minimal identity plus useful shared context such as compatible current intent and a few shared interests. Do not use swipe cards, photo-heavy profile judgment or public-feed patterns. Richer profile detail becomes appropriate after mutual Connect. Keep private one-sided Extend and Connect choices visually private until a mutual result exists.
 

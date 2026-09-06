@@ -4,9 +4,9 @@ package discovery
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"time"
@@ -87,7 +87,7 @@ func (h *Handler) socket(w http.ResponseWriter, r *http.Request) {
 	} else if ok {
 		profile, err := h.Repo.Profile(ctx, peer(current, user.ID))
 		reconnected, reconnectErr := h.Store.Reconnect(ctx, user.ID, connectionID, current.ID, h.now())
-		if err != nil || reconnectErr != nil || !reconnected || write(ctx, conn, event("match.found", current.ID, map[string]any{"peer": profile, "sharedInterests": current.SharedInterests, "intent": current.Intent, "offerer": current.UserA == user.ID, "recovered": true, "state": current.State, "startedAt": current.StartedAt, "expiresAt": current.ExpiresAt})) != nil {
+		if err != nil || reconnectErr != nil || !reconnected || write(ctx, conn, event("match.found", current.ID, map[string]any{"peer": profile, "sharedInterests": current.SharedInterests, "intent": current.Intent, "offerer": current.UserA == user.ID, "recovered": true, "state": current.State, "startedAt": current.StartedAt, "expiresAt": current.ExpiresAt, "connected": current.ConnectionID != "", "connectionId": current.ConnectionID})) != nil {
 			return
 		}
 	}
@@ -163,6 +163,38 @@ func (h *Handler) socket(w http.ResponseWriter, r *http.Request) {
 			}
 			if result == 1 {
 				_ = write(ctx, conn, event("match.extend_pending", envelope.MatchID, struct{}{}))
+			}
+		case "match.connect":
+			if envelope.MatchID == "" {
+				return
+			}
+			result, err := h.Store.ConnectVote(ctx, user.ID, connectionID, envelope.MatchID, h.now())
+			if err != nil || result <= 0 {
+				_ = write(ctx, conn, event("error", envelope.MatchID, map[string]string{"code": "connect_unavailable"}))
+				continue
+			}
+			if result == 1 {
+				_ = write(ctx, conn, event("match.connect_pending", envelope.MatchID, struct{}{}))
+				continue
+			}
+			if result == 3 {
+				current, ok, currentErr := h.Store.CurrentMatch(ctx, user.ID)
+				if currentErr == nil && ok && current.ID == envelope.MatchID && current.ConnectionID != "" {
+					_ = write(ctx, conn, event("connection.created", envelope.MatchID, map[string]string{"connectionId": current.ConnectionID}))
+				}
+				continue
+			}
+			if result == 2 {
+				current, ok, err := h.Store.CurrentMatch(ctx, user.ID)
+				if err != nil || !ok || current.ID != envelope.MatchID {
+					continue
+				}
+				durableID, err := h.Repo.PersistConnection(ctx, current)
+				if err != nil {
+					_ = write(ctx, conn, event("error", envelope.MatchID, map[string]string{"code": "connect_persistence_failed"}))
+					continue
+				}
+				_, _ = h.Store.PublishConnection(ctx, envelope.MatchID, durableID)
 			}
 		}
 	}
@@ -275,7 +307,9 @@ func randomID() string {
 	if _, err := rand.Read(value); err != nil {
 		panic(errors.New("random source unavailable"))
 	}
-	return hex.EncodeToString(value)
+	value[6] = (value[6] & 0x0f) | 0x40
+	value[8] = (value[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", value[0:4], value[4:6], value[6:8], value[8:10], value[10:16])
 }
 
 func (h *Handler) now() time.Time {

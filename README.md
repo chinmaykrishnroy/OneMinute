@@ -2,7 +2,7 @@
 
 A conversation-first social application built around one promise: **Meet the person before you judge the profile.** Branding is temporary; internal names use **encounter**.
 
-**Current slice: Milestones 0–3 implemented.** The networking foundation, Google-backed application identity, authenticated presence and distributed discovery queue are in place. The next implementation slice is the authoritative 60-second encounter; see the [roadmap](docs/architecture/roadmap.md).
+**Current slice: Milestones 0–5 implemented.** Networking, Google-backed identity, distributed discovery, the authoritative encounter and the durable social graph are in place. The next implementation slice is persistent communication; see the [roadmap](docs/architecture/roadmap.md).
 
 The product loop is `DISCOVER → TALK → EXTEND → CONNECT → KEEP`. Discovery reveals enough shared context to start a conversation, while richer profiles and durable relationships come after mutual Connect. Dating is an optional compatible intent, not the product identity.
 
@@ -76,7 +76,7 @@ PowerShell `./scripts/dev.ps1 check` and Makefile targets provide equivalent che
 
 ## Decisions and next work
 
-Compute remains disposable; PostgreSQL owns durable records and Redis will own distributed runtime state. Migrations run as a single deployment job before API startup. The initial migration creates pgvector and the minimal user/profile foundation; later tables ship with their working feature slices.
+Compute remains disposable; PostgreSQL owns durable records and Redis owns distributed runtime state. Migrations run as a single deployment job before API startup. Schema changes ship with their working feature slices.
 
 Application binaries run as non-root containers. Local web/API/database/cache ports bind to loopback. TURN has direct UDP/TCP access and a small bounded relay range; see [ICE/TURN](docs/webrtc/ice-turn.md) before LAN or VM use. The Compose file is for development, not a finished public deployment.
 

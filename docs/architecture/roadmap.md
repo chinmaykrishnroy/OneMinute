@@ -26,13 +26,15 @@ Authenticated presence and sockets; queue membership; current session intent; la
 
 ### Milestone 4 — Encounter
 
-Authoritative 60-second lifecycle, server timestamps, responsive square-video encounter layout, shared preview/transmitted mirror processing and device settings, Next/Skip, private mutual Extend, RTCDataChannel temporary chat, 30–60 second reconnect grace, cleanup/requeue and atomic expiry/extension handling. Advanced camera effects remain an optional later enhancement behind the processed-track boundary.
+Authoritative 60-second lifecycle, server timestamps, responsive square-video encounter layout, shared preview/transmitted mirror processing and device settings, Next/Skip, private mutual Extend, RTCDataChannel temporary chat, 45-second reconnect grace, cleanup/requeue and atomic expiry/extension handling. Advanced camera effects remain an optional later enhancement behind the processed-track boundary.
 
-## Planned product slices
+## Completed social graph
 
 ### Milestone 5 — Social graph
 
 Richer profiles and interests, block/report flows, reputation foundation, private mutual Connect, durable encounter-backed connections, connection list and removal/block interactions.
+
+## Planned product slices
 
 ### Milestone 5.5 — Persistent communication
 

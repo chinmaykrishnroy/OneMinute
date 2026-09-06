@@ -19,7 +19,7 @@ services:
       TURN_REALM: ${TURN_REALM:-local.encounter}
       TURN_RELAY_MIN: ${TURN_RELAY_MIN:-49160}
       TURN_RELAY_MAX: ${TURN_RELAY_MAX:-49180}
-    command: ["sh", "-ec", "go test -race ./... && go vet ./... && go test -race -tags integration -count=1 -timeout 120s -v ./apps/server/internal/auth ./apps/server/internal/discovery ./apps/server/internal/migrations ./apps/server/internal/signaling ./services/turn ./services/rtc-probe"]
+    command: ["sh", "-ec", "go test -race ./... && go vet ./... && go test -race -tags integration -count=1 -timeout 120s -v ./apps/server/internal/auth ./apps/server/internal/discovery ./apps/server/internal/migrations ./apps/server/internal/signaling ./apps/server/internal/social ./services/turn ./services/rtc-probe"]
   verify-web:
     profiles: [test]
     image: node:24-alpine

@@ -33,11 +33,11 @@ type queuedState struct {
 	Preferences  Preferences `json:"preferences"`
 }
 
-type matchState struct {
-	ID, UserA, UserB, Intent string
-	SharedInterests          []string
-	State                    string
-	StartedAt, ExpiresAt     int64
+type MatchState struct {
+	ID, UserA, UserB, Intent, ConnectionID string
+	SharedInterests                        []string
+	State                                  string
+	StartedAt, ExpiresAt                   int64
 }
 
 type Store struct {
@@ -119,25 +119,25 @@ func (s Store) Claim(ctx context.Context, userA, userB, connectionA, connectionB
 	return result == 1, err
 }
 
-func (s Store) CurrentMatch(ctx context.Context, userID string) (matchState, bool, error) {
+func (s Store) CurrentMatch(ctx context.Context, userID string) (MatchState, bool, error) {
 	id, err := s.Redis.Get(ctx, s.matchKey(userID)).Result()
 	if errors.Is(err, redis.Nil) {
-		return matchState{}, false, nil
+		return MatchState{}, false, nil
 	}
 	if err != nil {
-		return matchState{}, false, err
+		return MatchState{}, false, err
 	}
 	fields, err := s.Redis.HGetAll(ctx, s.key("match:")+id).Result()
 	if err != nil || fields["a"] == "" || fields["b"] == "" {
-		return matchState{}, false, err
+		return MatchState{}, false, err
 	}
 	var shared []string
 	if err := json.Unmarshal([]byte(fields["sharedInterests"]), &shared); err != nil {
-		return matchState{}, false, err
+		return MatchState{}, false, err
 	}
 	startedAt, _ := strconv.ParseInt(fields["startedAt"], 10, 64)
 	expiresAt, _ := strconv.ParseInt(fields["expiresAt"], 10, 64)
-	return matchState{ID: id, UserA: fields["a"], UserB: fields["b"], Intent: fields["intent"], SharedInterests: shared, State: fields["state"], StartedAt: startedAt, ExpiresAt: expiresAt}, true, nil
+	return MatchState{ID: id, UserA: fields["a"], UserB: fields["b"], Intent: fields["intent"], ConnectionID: fields["connectionId"], SharedInterests: shared, State: fields["state"], StartedAt: startedAt, ExpiresAt: expiresAt}, true, nil
 }
 
 func (s Store) Reconnect(ctx context.Context, userID, connectionID, matchID string, now time.Time) (bool, error) {
@@ -155,8 +155,22 @@ func (s Store) EndMatch(ctx context.Context, userID, connectionID, matchID, reas
 	return result == 1, err
 }
 
+func (s Store) EndForUser(ctx context.Context, userID, matchID, reason string) (bool, error) {
+	result, err := s.Redis.Eval(ctx, endForUserScript, []string{s.matchKey(userID), s.key("match:") + matchID, s.key("deadlines"), s.key("disconnect-deadlines")}, userID, matchID, reason, s.prefix()).Int()
+	return result == 1, err
+}
+
 func (s Store) Extend(ctx context.Context, userID, connectionID, matchID string, now time.Time) (int, error) {
 	return s.Redis.Eval(ctx, extendScript, []string{s.presenceKey(userID), s.matchKey(userID), s.key("match:") + matchID, s.key("deadlines")}, userID, connectionID, matchID, now.UnixMilli(), s.prefix()).Int()
+}
+
+func (s Store) ConnectVote(ctx context.Context, userID, connectionID, matchID string, now time.Time) (int, error) {
+	return s.Redis.Eval(ctx, connectScript, []string{s.presenceKey(userID), s.matchKey(userID), s.key("match:") + matchID}, userID, connectionID, matchID, now.UnixMilli()).Int()
+}
+
+func (s Store) PublishConnection(ctx context.Context, matchID, connectionID string) (bool, error) {
+	result, err := s.Redis.Eval(ctx, publishConnectionScript, []string{s.key("match:") + matchID}, matchID, connectionID, s.prefix()).Int()
+	return result == 1, err
 }
 
 func (s Store) Disconnect(ctx context.Context, userID, connectionID string, now time.Time) error {
@@ -218,7 +232,7 @@ func sharedInterests(a, b []string) []string {
 	return shared
 }
 
-func peer(match matchState, userID string) string {
+func peer(match MatchState, userID string) string {
 	if match.UserA == userID {
 		return match.UserB
 	}
@@ -319,6 +333,16 @@ if b then redis.call('DEL',ARGV[5]..'user-match:'..b);redis.call('PUBLISH',ARGV[
 redis.call('ZREM',KEYS[4],ARGV[3]);redis.call('ZREM',KEYS[5],ARGV[3]..':'..a,ARGV[3]..':'..b)
 redis.call('DEL',KEYS[3]);return 1`
 
+const endForUserScript = `
+if redis.call('GET',KEYS[1])~=ARGV[2] then return 0 end
+local a=redis.call('HGET',KEYS[2],'a');local b=redis.call('HGET',KEYS[2],'b')
+if ARGV[1]~=a and ARGV[1]~=b then return 0 end
+local message=cjson.encode({version=1,type='match.ended',matchId=ARGV[2],payload={reason=ARGV[3]}})
+if a then redis.call('DEL',ARGV[4]..'user-match:'..a);redis.call('PUBLISH',ARGV[4]..'user:'..a,message) end
+if b then redis.call('DEL',ARGV[4]..'user-match:'..b);redis.call('PUBLISH',ARGV[4]..'user:'..b,message) end
+redis.call('ZREM',KEYS[3],ARGV[2]);redis.call('ZREM',KEYS[4],ARGV[2]..':'..a,ARGV[2]..':'..b)
+redis.call('DEL',KEYS[2]);return 1`
+
 const extendScript = `
 if redis.call('GET',KEYS[1])~=ARGV[2] or redis.call('GET',KEYS[2])~=ARGV[3] then return 0 end
 local a=redis.call('HGET',KEYS[3],'a');local b=redis.call('HGET',KEYS[3],'b')
@@ -335,6 +359,30 @@ redis.call('HSET',KEYS[3],'state','extended','extendedAt',ARGV[4]);redis.call('Z
 local message=cjson.encode({version=1,type='match.extended',matchId=ARGV[3],payload={extendedAt=tonumber(ARGV[4])}})
 redis.call('PUBLISH',ARGV[5]..'user:'..a,message);redis.call('PUBLISH',ARGV[5]..'user:'..b,message)
 return 2`
+
+const connectScript = `
+if redis.call('GET',KEYS[1])~=ARGV[2] or redis.call('GET',KEYS[2])~=ARGV[3] then return 0 end
+local a=redis.call('HGET',KEYS[3],'a');local b=redis.call('HGET',KEYS[3],'b')
+if ARGV[1]~=a and ARGV[1]~=b then return 0 end
+local state=redis.call('HGET',KEYS[3],'state')
+local expires=tonumber(redis.call('HGET',KEYS[3],'expiresAt') or '0')
+if state~='extended' and (state~='active' or expires<=tonumber(ARGV[4])) then return -1 end
+if redis.call('HGET',KEYS[3],'connectPersisted')=='1' then return 3 end
+redis.call('HSET',KEYS[3],'connect:'..ARGV[1],1)
+local other=b;if ARGV[1]==b then other=a end
+if not redis.call('HGET',KEYS[3],'connect:'..other) then return 1 end
+return 2`
+
+const publishConnectionScript = `
+local a=redis.call('HGET',KEYS[1],'a');local b=redis.call('HGET',KEYS[1],'b')
+if not a or not b then return 0 end
+local voteA=redis.call('HGET',KEYS[1],'connect:'..a);local voteB=redis.call('HGET',KEYS[1],'connect:'..b)
+if not voteA or not voteB then return 0 end
+if redis.call('HGET',KEYS[1],'connectPersisted')=='1' then return 0 end
+redis.call('HSET',KEYS[1],'connectPersisted',1,'connectionId',ARGV[2])
+local message=cjson.encode({version=1,type='connection.created',matchId=ARGV[1],payload={connectionId=ARGV[2]}})
+redis.call('PUBLISH',ARGV[3]..'user:'..a,message);redis.call('PUBLISH',ARGV[3]..'user:'..b,message)
+return 1`
 
 const disconnectScript = `
 if redis.call('GET',KEYS[1])~=ARGV[2] then return 0 end

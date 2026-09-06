@@ -52,6 +52,11 @@ func TestAuthenticatedCrossInstanceDiscovery(t *testing.T) {
 	}
 	defer func() {
 		for _, user := range users {
+			_, _ = db.Exec(context.Background(), "DELETE FROM reports WHERE reporter_user_id=$1 OR reported_user_id=$1", user.ID)
+			_, _ = db.Exec(context.Background(), "DELETE FROM connections WHERE user_low=$1 OR user_high=$1", user.ID)
+			_, _ = db.Exec(context.Background(), "DELETE FROM encounters WHERE user_low=$1 OR user_high=$1", user.ID)
+		}
+		for _, user := range users {
 			_, _ = db.Exec(context.Background(), "DELETE FROM users WHERE id=$1", user.ID)
 		}
 	}()
@@ -141,6 +146,22 @@ func TestAuthenticatedCrossInstanceDiscovery(t *testing.T) {
 	sendEvent(t, ctx, b, event("match.extend", matchA.MatchID, struct{}{}))
 	readUntil(t, ctx, a2, "match.extended")
 	readUntil(t, ctx, b, "match.extended")
+	sendEvent(t, ctx, a2, event("match.connect", matchA.MatchID, struct{}{}))
+	readUntil(t, ctx, a2, "match.connect_pending")
+	sendEvent(t, ctx, b, event("match.connect", matchA.MatchID, struct{}{}))
+	connectedA := readUntil(t, ctx, a2, "connection.created")
+	connectedB := readUntil(t, ctx, b, "connection.created")
+	if connectedA.MatchID != matchA.MatchID || connectedB.MatchID != matchA.MatchID {
+		t.Fatal("mutual Connect did not publish the durable outcome")
+	}
+	var durable int
+	if err := db.QueryRow(ctx, "SELECT count(*) FROM connections c JOIN encounters e ON e.id=c.encounter_id WHERE e.id=$1 AND c.ended_at IS NULL", matchA.MatchID).Scan(&durable); err != nil || durable != 1 {
+		t.Fatalf("mutual Connect was not persisted exactly once: count=%d err=%v", durable, err)
+	}
+	sendEvent(t, ctx, a2, event("match.connect", matchA.MatchID, struct{}{}))
+	if repeated := readUntil(t, ctx, a2, "connection.created"); repeated.MatchID != matchA.MatchID {
+		t.Fatal("persisted Connect outcome was not recoverable by the participant")
+	}
 	sendEvent(t, ctx, b, event("match.skip", matchA.MatchID, struct{}{}))
 	readUntil(t, ctx, b, "match.ended")
 	readUntil(t, ctx, a2, "match.ended")

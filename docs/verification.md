@@ -143,3 +143,17 @@ Remote automated verification covers the recent-pair fallback, the full Go race/
 After a manual report that returning from Home notified the waiting peer without restoring video, both sides now rebuild their peer connection on `peer.reconnected`; the designated offerer renegotiates while an existing camera pipeline is reused. Camera acquisition requests ideal 1920×1080 with no minimum, and the sender selects balanced degradation so the browser's WebRTC congestion controller may reduce resolution and bitrate under constrained bandwidth.
 
 Frontend typecheck, lint and production build passed on `oneminute`. A real two-account Home → Discover recovery and observing resolution changes under controlled bandwidth remain manual browser checks; the implementation does not claim exact resolution thresholds because the browser chooses them from live congestion signals and device capabilities.
+
+## Milestone 5 social graph (2026-09-06)
+
+Implemented and deployed on `oneminute`:
+
+- Profile editing stores bounded display name, bio, country, normalized interests and language tags. Richer profile details appear in the connection list after mutual Connect.
+- Connect is a private match-scoped vote independent from Extend. The first vote receives only a private pending acknowledgment; mutual Connect persists a canonical encounter-backed connection and publishes `connection.created` once.
+- Connections can be listed and removed. Blocking ends any active relationship, excludes the pair from discovery, and is manageable from the profile screen.
+- Reports require a server-validated active encounter or connection. Categories and details are bounded, repeated reports for the same reporter/context are idempotent, and the database requires exactly one report context.
+- Desktop navigation and four-item mobile bottom navigation link Discover, Connections and Profile. Live encounters and established connections expose report/block controls in the shared soft neobrutalist social UI.
+
+Remote verification passed: the complete Go race and vet suite; migration replay; real PostgreSQL profile, encounter, connection, report, block and unblock lifecycle; unauthenticated access rejection; exact-Origin mutation rejection; arbitrary relationship-target rejection; private/mutual Connect with exactly one durable connection; existing Redis lifecycle and cross-instance signaling tests; TURN UDP/TCP allocation; Pion normal and forced-relay media/DataChannels; and frontend clean install, typecheck, lint and production build. The rebuilt deployment reports PostgreSQL, Redis and schema readiness; all six long-running services are healthy; and local gateway plus public Cloudflare health checks pass.
+
+Still requires a manual two-account browser acceptance pass for private Connect visibility, mutual connection creation, richer profile display, remove/block/unblock, and both live and established-connection report dialogs. Moderation review tools, automated reputation effects, bans and abuse-rate controls remain Milestone 7 work.

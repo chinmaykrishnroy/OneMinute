@@ -1,0 +1,1 @@
+import type {Metadata} from "next";import{Connections}from"@/components/social/connections";export const metadata:Metadata={title:"Connections"};export default function Page(){return <Connections api={process.env.API_PUBLIC_URL??"http://localhost:8080"}/>}

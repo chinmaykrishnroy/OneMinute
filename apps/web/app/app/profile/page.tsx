@@ -1,0 +1,1 @@
+import type {Metadata} from "next";import{ProfileEditor}from"@/components/social/profile";export const metadata:Metadata={title:"Profile"};export default function Page(){return <ProfileEditor api={process.env.API_PUBLIC_URL??"http://localhost:8080"}/>}

@@ -15,6 +15,7 @@ import (
 	"example.com/encounter/apps/server/internal/config"
 	"example.com/encounter/apps/server/internal/discovery"
 	"example.com/encounter/apps/server/internal/signaling"
+	"example.com/encounter/apps/server/internal/social"
 	"example.com/encounter/apps/server/internal/transport"
 	"example.com/encounter/internal/ice"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -63,8 +64,9 @@ func run(ctx context.Context, log *slog.Logger) error {
 	host := os.Getenv("TURN_HOST")
 	iceProvider := ice.SharedSecretProvider{Secret: os.Getenv("TURN_SECRET"), URLs: []string{"stun:" + host, "turn:" + host + "?transport=udp", "turn:" + host + "?transport=tcp"}, TTL: 10 * time.Minute}
 	discoveryHandler := &discovery.Handler{Root: ctx, Store: discovery.Store{Redis: cache}, Repo: discovery.Repository{DB: pool}, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin, ICE: iceProvider}
+	socialHandler := &social.Handler{Repo: social.Repository{DB: pool}, Store: discoveryHandler.Store, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin}
 	go discoveryHandler.Run(ctx)
-	var register = []func(*http.ServeMux){authHandler.Register, discoveryHandler.Register}
+	var register = []func(*http.ServeMux){authHandler.Register, discoveryHandler.Register, socialHandler.Register}
 	if cfg.LabEnabled {
 		lab := &signaling.Lab{Root: ctx, Redis: cache, Origin: cfg.WebOrigin, ICE: iceProvider}
 		register = append(register, lab.Register)
@@ -74,7 +76,7 @@ func run(ctx context.Context, log *slog.Logger) error {
 		"redis":    func(ctx context.Context) error { return cache.Ping(ctx).Err() },
 		"schema": func(ctx context.Context) error {
 			var exists bool
-			err := pool.QueryRow(ctx, "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.blocks') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector')").Scan(&exists)
+			err := pool.QueryRow(ctx, "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.blocks') IS NOT NULL AND to_regclass('public.connections') IS NOT NULL AND EXISTS (SELECT 1 FROM pg_extension WHERE extname='vector')").Scan(&exists)
 			if err != nil {
 				return err
 			}

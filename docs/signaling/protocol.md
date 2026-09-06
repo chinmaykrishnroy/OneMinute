@@ -1,5 +1,5 @@
 # Signaling protocol
-Status: the isolated development lab and authenticated discovery sockets are implemented. The authoritative encounter timer and voting events remain planned. See packages/protocol/README.md for implemented envelope constraints.
+Status: the isolated development lab, authenticated discovery sockets, authoritative encounter lifecycle, Extend and Connect events are implemented. See packages/protocol/README.md for envelope constraints.
 
 Envelope:
 ```json
@@ -11,8 +11,8 @@ Server events: connection.ready, queue.joined, match.found, match.started, webrt
 
 Validate version, event type, field lengths, payload shape and match membership on the server. Never accept an arbitrary destination user UUID. Bound frames and per-connection/per-user rates. Correlate errors with requestId; never log SDP or ICE bodies.
 
-Redis Pub/Sub routes transient events across instances. A 30–60 second reconnect grace is planned for accidental network changes. Reconnect must revalidate the Go session, live match membership, match status and expiry; the client cannot restore itself by asserting a match ID. Durable-enough Redis match state lets a reconnect recover the current lifecycle snapshot after missed Pub/Sub events.
+Redis Pub/Sub routes transient events across instances. A 45-second reconnect grace handles accidental network changes. Reconnect revalidates the Go session, live match membership, match status and grace deadline; the client cannot restore itself by asserting a match ID. Redis match state lets a reconnect recover the current lifecycle snapshot after missed Pub/Sub events.
 
-Both clients use authoritative startedAt/expiresAt timestamps; the backend resolves Extend versus expiry atomically using server time. Never reveal a one-sided Extend or Connect vote. Extend removes the current encounter deadline only after both votes and creates no durable relationship. Connect remains independent and creates a durable connection only after both votes from a valid encounter.
+Both clients use authoritative startedAt/expiresAt timestamps; the backend resolves Extend versus expiry atomically using server time. One-sided Extend or Connect votes remain private. Extend removes the current encounter deadline only after both votes and creates no durable relationship. Connect remains independent and creates a durable encounter-backed connection only after both votes.
 
 Temporary encounter text uses RTCDataChannel and is not stored. Later persistent connection messages use authenticated WebSocket/HTTP delivery with PostgreSQL as the source of truth; they do not reuse the DataChannel protocol.

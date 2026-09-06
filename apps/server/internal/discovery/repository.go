@@ -2,6 +2,8 @@ package discovery
 
 import (
 	"context"
+	"sort"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -10,6 +12,36 @@ type Profile struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"displayName"`
 	AvatarURL   string `json:"avatarUrl"`
+}
+
+func (r Repository) PersistConnection(ctx context.Context, match MatchState) (string, error) {
+	users := []string{match.UserA, match.UserB}
+	sort.Strings(users)
+	shared := match.SharedInterests
+	if shared == nil {
+		shared = []string{}
+	}
+	startedAt := time.UnixMilli(match.StartedAt)
+	endedAt := time.Now().UTC()
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `INSERT INTO encounters(id,user_low,user_high,started_at,ended_at,intent,shared_interests,outcome)
+		VALUES($1,$2,$3,$4,$5,$6,$7,'connected') ON CONFLICT(id) DO UPDATE SET outcome='connected'`, match.ID, users[0], users[1], startedAt, endedAt, match.Intent, shared); err != nil {
+		return "", err
+	}
+	var id string
+	err = tx.QueryRow(ctx, `INSERT INTO connections(user_low,user_high,encounter_id) VALUES($1,$2,$3)
+		ON CONFLICT(user_low,user_high) WHERE ended_at IS NULL DO UPDATE SET encounter_id=connections.encounter_id RETURNING id::text`, users[0], users[1], match.ID).Scan(&id)
+	if err != nil {
+		return "", err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 type Repository struct{ DB *pgxpool.Pool }

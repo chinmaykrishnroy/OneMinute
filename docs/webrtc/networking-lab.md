@@ -29,7 +29,7 @@ The optional -test-audio flag sends synthetic Opus silence for RTP checks. Two p
 
 ## Known boundaries
 
-No account login, random queue, sixty-second expiry, extension, skip/requeue or persistent social state yet. These belong to Milestones 2–6. The lab deliberately ends on signaling loss instead of silently attempting session resumption. Transient packet loss can recover at the PeerConnection level; ICE failure requires a fresh room.
+The lab intentionally stays isolated from account login, random discovery, encounter lifecycle and persistent social state even though those product paths now exist. It ends on signaling loss instead of attempting product-session resumption. Transient packet loss can recover at the PeerConnection level; ICE failure requires a fresh room.
 
 Redis owns room membership and signaling authorization. Lua enforces two slots and sender membership. Pub/Sub routes across API instances. Only WebSocket transport resources are local to an instance. Pub/Sub can lose transient messages during a Redis outage; this lab is a network proof, not the completed recovery protocol.
 
