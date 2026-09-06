@@ -502,3 +502,16 @@ html {
     padding: 22px;
   }
 }
+
+/* Keep the mobile tab bar attached to the viewport while page content scrolls. */
+@media (max-width: 650px) {
+  .discover-shell > .product-nav,
+  .social-shell > .product-nav,
+  .encounter-shell > .product-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 50;
+    width: 100%;
+    transform: translateZ(0);
+  }
+}

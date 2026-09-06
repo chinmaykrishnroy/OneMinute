@@ -268,6 +268,23 @@ try {
   await a.keyboard.press("PageDown");
   await expect.poll(() => a.evaluate(() => scrollY)).toBeGreaterThan(100);
   await a.screenshot({ path: "/artifacts/phone-scroll.png" });
+
+  for (const route of ["discover", "profile"]) {
+    await a.goto(`${origin}/app/${route}`);
+    const nav = a.locator(".product-nav");
+    await expect(nav).toBeVisible();
+    const before = await nav.boundingBox();
+    expect(before).not.toBeNull();
+    await a.mouse.move(200, 400);
+    await a.mouse.wheel(0, 500);
+    await expect
+      .poll(async () => {
+        const after = await nav.boundingBox();
+        return after && before ? Math.round(after.y - before.y) : null;
+      })
+      .toBe(0);
+  }
+
   await a.goto(`${origin}/app/messages`);
   await a.getByRole("button", { name: /Sam Rivers/ }).click();
   await expect(a.locator(".header-heading h1")).toHaveText("Sam Rivers");
