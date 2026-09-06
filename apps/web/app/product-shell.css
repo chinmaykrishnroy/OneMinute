@@ -152,6 +152,7 @@ html {
   display: grid;
   grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.8fr);
   height: calc(100dvh - 144px);
+  overflow: visible;
 }
 .conversation-list {
   padding: 0 0 24px;
@@ -218,17 +219,6 @@ html {
   flex: 1 1 auto;
   min-width: 0;
 }
-.message-overflow-cue {
-  position: absolute;
-  z-index: 1;
-  top: 10px;
-  left: 12px;
-  color: var(--muted);
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1;
-  pointer-events: none;
-}
 .message-composer textarea {
   width: 100%;
   min-height: 48px;
@@ -239,9 +229,6 @@ html {
   line-height: 24px;
   padding: 11px 14px;
   border-width: 1px;
-}
-.message-draft-wrap.is-overflowing textarea {
-  padding-left: 32px;
 }
 .message-composer textarea:focus-visible {
   outline-offset: 0;

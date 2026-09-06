@@ -47,7 +47,6 @@ function ConversationInbox({ selected }: { selected: string }) {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
-  const [draftOverflow, setDraftOverflow] = useState(false);
   const [status, setStatus] = useState("Loading connections...");
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -81,9 +80,6 @@ function ConversationInbox({ selected }: { selected: string }) {
     const overflowing = element.scrollHeight > maxHeight + 1;
     element.style.height = `${Math.min(element.scrollHeight, maxHeight)}px`;
     element.style.overflowY = overflowing ? "auto" : "hidden";
-    setDraftOverflow((current) =>
-      current === overflowing ? current : overflowing,
-    );
   }, []);
   useLayoutEffect(() => {
     resizeDraft();
@@ -366,14 +362,7 @@ function ConversationInbox({ selected }: { selected: string }) {
                 <label className="sr-only" htmlFor="message-draft">
                   Message
                 </label>
-                <div
-                  className={`message-draft-wrap${draftOverflow ? " is-overflowing" : ""}`}
-                >
-                  {draftOverflow && (
-                    <span className="message-overflow-cue" aria-hidden="true">
-                      …
-                    </span>
-                  )}
+                <div className="message-draft-wrap">
                   <textarea
                     ref={draftElement}
                     id="message-draft"

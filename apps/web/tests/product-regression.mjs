@@ -278,7 +278,6 @@ try {
     .poll(() => draft.evaluate((element) => Math.round(element.getBoundingClientRect().height)))
     .toBe(await send.evaluate((element) => Math.round(element.getBoundingClientRect().height)));
   await draft.fill(Array.from({ length: 8 }, (_, index) => `line ${index + 1}`).join("\n"));
-  await expect(a.locator(".message-overflow-cue")).toBeVisible();
   await expect
     .poll(() => draft.evaluate((element) => element.getBoundingClientRect().height))
     .toBeLessThan(170);
