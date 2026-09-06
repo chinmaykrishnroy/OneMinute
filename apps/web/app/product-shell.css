@@ -1,0 +1,468 @@
+/* One shared shell; surfaces are reserved for content and controls that need them. */
+/* Hide chrome without disabling overflow, touch, wheel or keyboard scrolling. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+html {
+  scrollbar-gutter: auto;
+}
+:root[data-theme="dark"] {
+  background: #031009;
+  --canvas: #031009;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    background: #031009;
+    --canvas: #031009;
+  }
+}
+.discover-shell,
+.social-shell,
+.encounter-shell {
+  --shell-top: 24px;
+  padding-top: var(--shell-top);
+  padding-bottom: 32px;
+}
+.product-header,
+.encounter-shell .app-header {
+  position: sticky;
+  top: 0;
+  height: 72px;
+  min-height: 72px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  margin: 0 0 24px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--canvas);
+  z-index: 12;
+}
+.header-heading {
+  min-width: 0;
+  flex: 1;
+}
+.header-heading h1 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-heading > span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 10px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  box-shadow: none;
+  text-decoration: none;
+}
+.header-action:hover:not(:disabled) {
+  background: var(--surface-soft);
+  transform: none;
+  box-shadow: none;
+}
+.header-action:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+.header-text-action {
+  box-shadow: none;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-width: 1px;
+}
+.product-nav {
+  top: 24px;
+}
+.product-nav .rail-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 4px 36px;
+  margin-bottom: 12px;
+  border: 0;
+  border-radius: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  min-height: 88px;
+}
+.product-nav .rail-brand span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.product-nav .rail-brand:hover {
+  background: none;
+}
+.nav-unread {
+  height: 7px;
+  width: 7px;
+  border-radius: 50%;
+  background: var(--ink);
+  margin-left: auto;
+}
+.messenger-shell {
+  max-width: 1200px;
+}
+.messenger {
+  display: block;
+  min-height: 0;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.messenger.chat-selected {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.8fr);
+  height: calc(100dvh - 160px);
+}
+.conversation-list {
+  padding: 0 0 24px;
+  border: 0;
+}
+.conversation-search {
+  margin: 0 0 18px;
+}
+.conversation-search input {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  width: 100%;
+  font-size: 15px;
+}
+.conversation-list > p {
+  margin-inline: 0;
+}
+.conversation-item {
+  padding: 18px 8px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+.conversation-item.selected {
+  background: var(--lilac);
+  border-bottom: 1px solid var(--line);
+}
+.conversation-item small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 400;
+}
+.conversation-item strong {
+  font-size: 16px;
+}
+.conversation-item .unread-count {
+  font-size: 11px;
+  color: var(--ink);
+  font-weight: 700;
+}
+.chat-selected .conversation-list {
+  padding-right: 22px;
+}
+.chat-panel {
+  background: transparent;
+  border-left: 1px solid var(--line);
+}
+.message-history {
+  background: transparent;
+}
+.message-composer {
+  padding-bottom: 4px;
+}
+.profile-overview {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.profile-cover {
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.profile-identity {
+  margin: 12px 0 28px;
+  padding: 0;
+  align-items: center;
+}
+.profile-identity h1 {
+  margin: 0 0 10px;
+}
+.profile-shortcuts {
+  border-block: 1px solid var(--line);
+}
+.account-section {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  padding: 28px 0;
+  margin: 0;
+  scroll-margin-top: 88px;
+}
+.settings-page,
+.social-card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  margin-top: 0;
+  padding: 0;
+}
+.settings-page h1,
+.social-card h1 {
+  font-size: 28px;
+}
+.page-intro {
+  max-width: 580px;
+  margin: 16px 0 32px;
+}
+.page-intro h2 {
+  font-size: clamp(26px, 4vw, 38px);
+  margin: 16px 0;
+  line-height: 1.15;
+}
+.activity-list {
+  display: grid;
+}
+.activity-list > a {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 8px;
+  border-bottom: 1px solid var(--line);
+  text-decoration: none;
+}
+.activity-list a > div {
+  flex: 1;
+}
+.activity-list p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+.activity-list time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.activity-list .unread {
+  background: color-mix(in srgb, var(--lilac) 35%, transparent);
+}
+.moments-list {
+  display: grid;
+  gap: 0;
+  max-width: 760px;
+}
+.moment {
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+}
+.moment header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.moment header > div {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+}
+.moment header small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.moment img {
+  border-radius: 16px;
+  object-fit: cover;
+}
+.moment > p {
+  border-left: 4px solid var(--moment-tone, var(--lilac));
+  padding-left: 20px;
+  color: var(--ink);
+  font-size: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tone-lilac {
+  --moment-tone: #ac89dd;
+}
+.tone-mint {
+  --moment-tone: #80a957;
+}
+.tone-sand {
+  --moment-tone: #c7a54e;
+}
+.moment-empty {
+  max-width: 440px;
+  padding-block: 28px;
+}
+.moment-empty > svg {
+  color: #8c6bb8;
+}
+.moment-empty h2 {
+  margin: 20px 0 12px;
+}
+.moment-composer {
+  width: min(560px, calc(100% - 28px));
+  max-height: 90dvh;
+  padding: 28px;
+  border: 2px solid var(--ink);
+  border-radius: 22px;
+  color: var(--ink);
+  background: var(--paper);
+}
+.moment-composer::backdrop {
+  background: #10141088;
+  backdrop-filter: blur(4px);
+}
+.moment-composer form {
+  display: grid;
+  gap: 16px;
+  align-items: stretch;
+}
+.moment-composer textarea {
+  width: 100%;
+  resize: vertical;
+}
+.moment-composer p {
+  font-size: 13px;
+  margin: 0;
+}
+.moment-composer fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.moment-composer legend {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.moment-composer .theme-choices button {
+  text-transform: capitalize;
+  border-color: var(--moment-tone);
+}
+@media (min-width: 651px) and (max-width: 1000px) {
+  .product-nav .rail-brand {
+    font-size: 0;
+    padding: 0;
+    height: 64px;
+    min-height: 64px;
+  }
+  .product-nav .rail-brand::before {
+    content: "";
+    width: 44px;
+    height: 44px;
+    background: url("/icon.svg") center / contain no-repeat;
+  }
+  .nav-unread {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+  }
+}
+@media (max-width: 650px) {
+  .discover-shell,
+  .social-shell,
+  .encounter-shell {
+    --shell-top: 0px;
+    padding-inline: 18px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .product-header,
+  .encounter-shell .app-header {
+    height: 72px;
+    min-height: 72px;
+    padding: 12px 0;
+    margin-bottom: 20px;
+    gap: 8px;
+  }
+  .header-heading h1 {
+    font-size: 22px;
+  }
+  .product-nav {
+    top: auto;
+    gap: 12px;
+  }
+  .product-nav .rail-brand {
+    display: none;
+  }
+  .nav-unread {
+    position: absolute;
+    right: 16px;
+    top: 10px;
+  }
+  .messenger.chat-selected {
+    display: block;
+    height: calc(100dvh - 184px - env(safe-area-inset-bottom));
+    min-height: 240px;
+  }
+  .chat-selected .conversation-list {
+    display: none;
+  }
+  .chat-panel {
+    border: 0;
+  }
+  .message-history {
+    padding: 12px 0;
+  }
+  .message-composer {
+    padding: 12px 0 4px;
+  }
+  .message-status {
+    margin-inline: 0;
+  }
+  .profile-identity {
+    display: flex;
+    gap: 18px;
+    margin-top: 16px;
+  }
+  .profile-identity h1 {
+    font-size: 24px;
+    margin: 0 0 8px;
+  }
+  .account-section {
+    padding: 24px 0;
+  }
+  .moment-composer {
+    padding: 22px;
+  }
+}

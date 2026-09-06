@@ -1,10 +1,14 @@
 # OneMinute UI direction
 
+See [product navigation](product-navigation.md) for the current tab, page, action and settings map. Use it as the shared web/native UX guide.
+
 Owner preference, recorded 2026-09-05:
 
 > **soft neobrutalist + modern minimal social UI hybrid**
 
 This is the persistent visual direction for OneMinute. Keep the product name in the branding module and keep internal identifiers neutral.
+
+Owner refinements, 2026-09-07: dark page backgrounds use `#031009`; keep surfaces lighter for separation. Hide visible scrollbars throughout the app while preserving natural scrolling and keyboard access. Do not reserve a scrollbar gutter.
 
 ## Visual principles
 

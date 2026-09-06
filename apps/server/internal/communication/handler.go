@@ -41,6 +41,9 @@ type Message struct {
 }
 
 func (h *Handler) Register(m *http.ServeMux) {
+	m.HandleFunc("GET /v1/moments", h.moments)
+	m.HandleFunc("POST /v1/moments", h.moments)
+	m.HandleFunc("DELETE /v1/moments/{id}", h.deleteMoment)
 	m.HandleFunc("GET /v1/conversations", h.conversations)
 	m.HandleFunc("GET /v1/events/ws", h.events)
 	m.HandleFunc("GET /v1/settings", h.settings)

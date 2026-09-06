@@ -27,6 +27,18 @@ services:
     volumes:
       - ./apps/web:/source:ro
     command: ["sh", "-ec", "cp -a /source/. /workspace/ && npm ci && npm run typecheck && npm run lint && npm run build"]
+  verify-browser:
+    profiles: [test]
+    image: mcr.microsoft.com/playwright:v1.63.0-noble
+    working_dir: /workspace
+    shm_size: 1gb
+    volumes:
+      - ./apps/web:/source:ro
+      - ./artifacts/browser:/artifacts
+    environment:
+      API_PUBLIC_URL: http://127.0.0.1:3101
+      NEXT_TELEMETRY_DISABLED: "1"
+    command: ["sh", "-ec", "cp -a /source/. /workspace/ && npm ci && npm install --no-save --package-lock=false @playwright/test@1.63.0 && node tests/media-regression.mjs && npm run build && node tests/product-regression.mjs"]
 volumes:
   go-mod-cache:
   go-build-cache:

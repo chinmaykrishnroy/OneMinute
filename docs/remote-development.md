@@ -20,6 +20,7 @@ The three Compose files are cumulative: base dependencies and services, Linux ho
 ```sh
 sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.public.yaml -f compose.test.yaml --profile test run --rm verify-go
 sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.public.yaml -f compose.test.yaml --profile test run --rm verify-web
+sudo -n docker compose -f compose.yaml -f compose.remote.yaml -f compose.public.yaml -f compose.test.yaml --profile test run --rm verify-browser
 curl -f https://oneminute.prefect-sys.online/healthz
 ```
 

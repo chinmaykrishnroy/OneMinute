@@ -1,5 +1,7 @@
 # Verification
 
+Latest: [communication repair and navigation](verification-communication-repair.md), including two-way browser video, private Moments and responsive shell checks (2026-09-07).
+
 ## Communication core and product UX (2026-09-06)
 
 Implemented: dedicated first-time onboarding; individual tab titles; corrected UTF-8 labels and a build-time regression check; sticky headers and spaced mobile tabs; persisted System/Light/Dark appearance and notification/typing/read-receipt settings; connection-only PostgreSQL text messaging; retry-safe client message IDs; realtime delivery, typing and receipts; inbox previews/unread counts; durable connection/message/call notifications; and browser-to-browser connected calls with audio/video switching and a draggable, aspect-aware self-preview.

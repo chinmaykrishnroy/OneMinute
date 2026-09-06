@@ -6,6 +6,8 @@ A conversation-first social application built around one promise: **Meet the per
 
 The product loop is `DISCOVER → TALK → EXTEND → CONNECT → KEEP`. Discovery reveals enough shared context to start a conversation, while richer profiles and durable relationships come after mutual Connect. Dating is an optional compatible intent, not the product identity.
 
+The shell has Discover, Messages, Moments and You. Moments are private text updates for existing connections, visible for 24 hours; there is no public feed. The [navigation guide](docs/design/product-navigation.md) defines destinations, header actions and account settings for web and future native apps.
+
 ## Development instance
 
 Build and test on **oneminute** in **/home/roy/OneMinute**, per the project workflow. Use `ssh oneminute` and the commands in [remote development](docs/remote-development.md). The public development lab is [oneminute.prefect-sys.online/lab](https://oneminute.prefect-sys.online/lab). The local application stack is stopped.

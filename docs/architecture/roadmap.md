@@ -44,7 +44,11 @@ Implemented communication core: PostgreSQL text history with retry-safe message 
 
 The first sign-in now leads to dedicated three-step onboarding before Discover. You remains the place to edit those preferences later. The shell has sticky headers, individual route titles, spaced icon navigation and a System-default theme with Light/Dark choices. Connected calls use a full-screen remote participant and a movable local preview, separately from discovery's equal-pane encounter layout.
 
-Next acceptance boundary: private object storage, authorized presigned uploads/downloads, attachment metadata and cleanup, followed by Milestone 6. Keep Posts as an explicitly unavailable placeholder; this milestone does not introduce a public feed. Two physical-device call acceptance and closed-app delivery must not be inferred from transport/unit tests.
+The communication repair adds bounded timestamp-preserving mirrored camera processing and answerer track binding after the remote offer. The shell now has Discover, Messages, Moments and You, with a single account activity destination and contextual header actions. See [product navigation](../design/product-navigation.md) for the screen and settings map.
+
+Moments replaces the Posts placeholder with connection-only text updates: 24-hour visibility, a publication-time audience, immediate access revocation on block/removal, owner deletion and three-active-item quota. It does not introduce a public feed.
+
+Next acceptance boundary: private object storage, authorized presigned uploads/downloads, attachment metadata and cleanup, followed by Milestone 6. Physical-device call acceptance and closed-app delivery must not be inferred from transport/unit tests.
 
 ### Milestone 6 — Intelligent discovery
 
@@ -58,4 +62,4 @@ Moderation, abuse prevention, rate limits, upload validation and quotas, reports
 
 Dating is an optional explicit intent and requires compatible opt-in from both users. Discovery is conversation-first and avoids full pre-call profiles or endless swipe/skip mechanics. Quality controls may later discourage instant-skip farming without imposing an unmeasured hard limit now. There is no public feed, follower count, likes, reels, stories system or call recording in this roadmap.
 
-Private encounter “Moments” and privacy-safe share cards are possible later additions. They may retain permitted metadata such as date, duration and shared interests, never the call itself; identifiable sharing requires explicit consent.
+Private encounter keepsakes and privacy-safe share cards are possible later additions, separate from text Moments. They may retain permitted metadata such as date, duration and shared interests, never the call itself; identifiable sharing requires explicit consent.

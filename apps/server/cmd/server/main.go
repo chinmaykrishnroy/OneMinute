@@ -68,6 +68,7 @@ func run(ctx context.Context, log *slog.Logger) error {
 	socialHandler := &social.Handler{Repo: social.Repository{DB: pool}, Store: discoveryHandler.Store, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin}
 	go discoveryHandler.Run(ctx)
 	communicationHandler := &communication.Handler{DB: pool, Redis: cache, Authenticate: authHandler.Authenticate, Origin: cfg.WebOrigin, ICE: iceProvider}
+	go communicationHandler.RunMomentCleanup(ctx)
 	var register = []func(*http.ServeMux){authHandler.Register, discoveryHandler.Register, socialHandler.Register, communicationHandler.Register}
 	if cfg.LabEnabled {
 		lab := &signaling.Lab{Root: ctx, Redis: cache, Origin: cfg.WebOrigin, ICE: iceProvider}

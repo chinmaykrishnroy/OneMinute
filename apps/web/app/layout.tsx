@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { brand } from "@/lib/brand";
 import "./globals.css";
+import "./product-shell.css";
 import { CommunicationProvider } from "@/components/communication/runtime";
 
 export const metadata: Metadata = {

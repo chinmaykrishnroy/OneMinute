@@ -184,9 +184,47 @@ func TestDurableCommunicationLifecycle(t *testing.T) {
 	request("POST", action, ids[1], map[string]any{"type": "answer", "payload": map[string]string{"type": "answer", "sdp": "v=0"}}, 200)
 	request("POST", action, ids[1], map[string]any{"type": "media", "payload": map[string]bool{"video": true, "audio": true}}, 200)
 	request("POST", action, ids[0], map[string]any{"type": "heartbeat"}, 200)
+	request("GET", "/v1/moments", "", nil, 401)
+	request("POST", "/v1/moments", ids[0], map[string]string{"body": "", "tone": "mint"}, 400)
+	momentIDs := []string{}
+	for i := 0; i < 3; i++ {
+		created := request("POST", "/v1/moments", ids[0], map[string]string{"body": "A private moment", "tone": "mint"}, 201)
+		var result map[string]string
+		if err := json.Unmarshal(created.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		momentIDs = append(momentIDs, result["id"])
+	}
+	request("POST", "/v1/moments", ids[0], map[string]string{"body": "Over quota", "tone": "mint"}, 409)
+	assertMoments := func(user string, count int) {
+		t.Helper()
+		response := request("GET", "/v1/moments", user, nil, 200)
+		var moments []Moment
+		if err := json.Unmarshal(response.Body.Bytes(), &moments); err != nil {
+			t.Fatal(err)
+		}
+		if len(moments) != count {
+			t.Fatalf("moments: got %d want %d", len(moments), count)
+		}
+	}
+	assertMoments(ids[0], 3)
+	assertMoments(ids[1], 3)
+	assertMoments(ids[2], 0)
+	request("DELETE", "/v1/moments/"+momentIDs[0], ids[2], nil, 404)
+	if _, err := (discovery.Repository{DB: db}).PersistConnection(ctx, discovery.MatchState{ID: uuid.NewString(), UserA: ids[0], UserB: ids[2], Intent: "new_friends", StartedAt: time.Now().Add(-time.Minute).UnixMilli()}); err != nil {
+		t.Fatal(err)
+	}
+	assertMoments(ids[2], 0) // Audience is fixed when published.
+	if _, err := db.Exec(ctx, "UPDATE moments SET created_at=now()-interval '25 hours',expires_at=now()-interval '1 hour' WHERE id=$1", momentIDs[0]); err != nil {
+		t.Fatal(err)
+	}
+	assertMoments(ids[1], 2) // Expiry does not depend on the cleanup worker.
+	request("DELETE", "/v1/moments/"+momentIDs[1], ids[0], nil, 200)
+	assertMoments(ids[1], 1)
 	if err := (social.Repository{DB: db}).Block(ctx, ids[1], ids[0]); err != nil {
 		t.Fatal(err)
 	}
+	assertMoments(ids[1], 0)
 	request("POST", path+"/messages", ids[0], map[string]any{"body": "Forbidden", "clientId": uuid.NewString()}, 403)
 	request("GET", path+"/messages", ids[0], nil, 403)
 	request("POST", path+"/calls", ids[0], map[string]bool{"video": true}, 403)
@@ -196,8 +234,10 @@ func TestDurableCommunicationLifecycle(t *testing.T) {
 	}
 	w = request("GET", "/v1/notifications", ids[0], nil, 200)
 	_ = json.Unmarshal(w.Body.Bytes(), &notices)
-	if len(notices) != 0 {
-		t.Fatal("blocked notifications visible")
+	for _, notice := range notices {
+		if notice["connectionId"] == connection {
+			t.Fatal("blocked notifications visible")
+		}
 	}
 }
 

@@ -76,9 +76,9 @@ export function ProfileEditor({ api }: { api: string }) {
   }
 
   return <main className="social-shell account-page">
-    <AppHeader title="You" />
+    <AppHeader title="You" action={<button className="header-action" aria-label="Open account settings" onClick={() => { setShowBlocked(false); drawer.current?.showModal(); }}><Icon name="settings" /></button>} />
     <section className="profile-overview">
-      <div className="profile-cover"><span className="eyebrow">Your little corner</span><button className="settings-trigger" aria-label="Open account settings" onClick={() => { setShowBlocked(false); drawer.current?.showModal(); }}><Icon name="settings" /></button></div>
+      <div className="profile-cover"><span className="eyebrow">Your little corner</span></div>
       <div className="profile-identity">
         {profile?.avatarUrl ? <Image className="profile-avatar" src={profile.avatarUrl} width={96} height={96} alt="" unoptimized /> : <span className="profile-avatar avatar-fallback">{profile?.displayName.slice(0, 1) || "?"}</span>}
         <div><h1>{profile?.displayName || "Your profile"}</h1><p>{profile?.bio || "A little about you. A lot of possibilities."}</p></div>
@@ -96,6 +96,7 @@ export function ProfileEditor({ api }: { api: string }) {
       <div className="drawer-body"><div className="settings-heading"><div><p className="eyebrow">Your account</p><h2 id="account-settings-title">Settings & activity</h2></div><button className="icon-button" aria-label="Close settings" onClick={() => drawer.current?.close()}><Icon name="close" /></button></div>
       <p>Everything that makes this space yours.</p>
       <nav className="settings-links" aria-label="Account settings">
+        <Link href="/app/activity"><Icon name="activity" />Activity & notifications<Icon name="arrow" /></Link>
         <Link href="/app/settings"><Icon name="settings" />App settings<Icon name="arrow" /></Link>
         <a href="#about" onClick={() => drawer.current?.close()}><Icon name="profile" />Edit profile<Icon name="arrow" /></a>
         <a href="#preferences" onClick={() => drawer.current?.close()}><Icon name="discover" />Discovery preferences<Icon name="arrow" /></a>

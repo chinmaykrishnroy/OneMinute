@@ -37,6 +37,7 @@ function ConversationInbox({ selected }: { selected: string }) {
   } = useCommunication();
   const router = useRouter();
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [search, setSearch] = useState("");
   const [items, setItems] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState("Loading connections...");
@@ -173,7 +174,7 @@ function ConversationInbox({ selected }: { selected: string }) {
       bottom.current?.scrollIntoView({ block: "nearest" });
   }, [items.length]);
   function choose(id: string) {
-    router.replace(`/app/messages?connection=${id}`);
+    router.push(`/app/messages?connection=${id}`);
   }
   async function send(event: FormEvent) {
     event.preventDefault();
@@ -240,15 +241,16 @@ function ConversationInbox({ selected }: { selected: string }) {
     }
   }
   return (
-    <main className="social-shell messenger-shell">
-      <AppHeader title="Messages" />
+    <main className={`social-shell messenger-shell ${selected ? "has-thread" : ""}`}>
+      <AppHeader title={person?.displayName || "Messages"} subtitle={person ? (typing ? "Typing..." : "Your connection") : undefined} action={person ? <><button className="header-action" onClick={() => void call(false)} disabled={!online} aria-label="Start audio call"><Icon name="phone" /></button><button className="header-action" onClick={() => void call(true)} disabled={!online} aria-label="Start video call"><Icon name="video" /></button></> : undefined} />
       <div className={`messenger ${selected ? "chat-selected" : ""}`}>
         <aside className="conversation-list">
-          <h1>Messages</h1>
+          <label className="conversation-search"><span className="sr-only">Search connections</span><input type="search" placeholder="Find a connection" value={search} onChange={event => setSearch(event.target.value)} /></label>
           <p className="field-hint">
-            {online ? "Connected" : "Reconnecting..."}
+            {online ? "The people you chose to keep." : "Reconnecting..."}
           </p>
-          {connections.map((c) => (
+          {!selected && <p role="status">{status}</p>}
+          {connections.filter(c => c.person.displayName.toLocaleLowerCase().includes(search.toLocaleLowerCase())).map((c) => (
             <button
               className={`conversation-item ${c.id === selected ? "selected" : ""}`}
               key={c.id}
@@ -283,42 +285,9 @@ function ConversationInbox({ selected }: { selected: string }) {
             </p>
           )}
         </aside>
-        <section className="chat-panel">
+        {selected && <section className="chat-panel">
           {person ? (
             <>
-              <header className="chat-header">
-                <button
-                  className="chat-back icon-button"
-                  aria-label="Back to conversations"
-                  onClick={() => {
-                    router.replace("/app/messages");
-                  }}
-                >
-                  <Icon name="back" />
-                </button>
-                <div>
-                  <h2>{person.displayName}</h2>
-                  <span className="field-hint">
-                    {typing ? "Typing..." : "Your connection"}
-                  </span>
-                </div>
-                <button
-                  className="icon-button"
-                  onClick={() => void call(false)}
-                  disabled={!online}
-                  aria-label="Start audio call"
-                >
-                  <Icon name="phone" />
-                </button>
-                <button
-                  className="icon-button"
-                  onClick={() => void call(true)}
-                  disabled={!online}
-                  aria-label="Start video call"
-                >
-                  <Icon name="video" />
-                </button>
-              </header>
               <div
                 className="message-history"
                 onScroll={(e) => {
@@ -407,7 +376,7 @@ function ConversationInbox({ selected }: { selected: string }) {
               <p role="status">{status}</p>
             </div>
           )}
-        </section>
+        </section>}
       </div>
       <MobileNav current="messages" />
     </main>
